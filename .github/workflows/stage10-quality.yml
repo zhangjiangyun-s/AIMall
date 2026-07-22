@@ -103,7 +103,7 @@ jobs:
           if [ -z "${NVD_API_KEY:-}" ]; then
             echo "::warning::NVD_API_KEY is unavailable; Dependency-Check will use the rate-limited NVD API."
           fi
-          mvn -B dependency-check:check
+          mvn -B org.owasp:dependency-check-maven:12.2.2:check
 
   static-gates:
     runs-on: windows-latest

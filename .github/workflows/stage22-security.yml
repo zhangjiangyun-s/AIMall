@@ -58,7 +58,7 @@ jobs:
           if [ -z "${NVD_API_KEY:-}" ]; then
             echo "::warning::NVD_API_KEY is unavailable; Dependency-Check will use the rate-limited NVD API."
           fi
-          mvn -B dependency-check:check
+          mvn -B org.owasp:dependency-check-maven:12.2.2:check
       - name: npm dependency gates
         run: npm --prefix aimall-web ci --include=dev --no-audit && npm --prefix aimall-web audit --audit-level=high && npm --prefix aimall-admin ci --include=dev --no-audit && npm --prefix aimall-admin audit --audit-level=high
       - name: pip dependency gate
