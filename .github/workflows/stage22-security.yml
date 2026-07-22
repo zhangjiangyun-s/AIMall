@@ -23,6 +23,9 @@ permissions:
 jobs:
   source-and-dependencies:
     runs-on: ubuntu-latest
+    concurrency:
+      group: aimall-nvd-dependency-check
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
@@ -41,8 +44,9 @@ jobs:
         id: dependency-check-cache-key
         shell: bash
         run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - name: Cache Dependency-Check vulnerability data
-        uses: actions/cache@v4
+      - name: Restore Dependency-Check vulnerability data
+        id: dependency-check-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: dependency-check-${{ runner.os }}-12.2.2-${{ steps.dependency-check-cache-key.outputs.week }}
@@ -50,15 +54,42 @@ jobs:
             dependency-check-${{ runner.os }}-12.2.2-
       - name: SAST - Semgrep OWASP Top Ten
         run: pip install semgrep && semgrep scan --config p/owasp-top-ten --error aimall-server/src/main aimall-ai-service/app aimall-web/src aimall-admin/src
-      - name: Maven dependency CVSS gate
+      - name: Update Dependency-Check vulnerability data
         working-directory: aimall-server
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           if [ -z "${NVD_API_KEY:-}" ]; then
             echo "::warning::NVD_API_KEY is unavailable; Dependency-Check will use the rate-limited NVD API."
+            nvd_delay_ms=10000
+          else
+            nvd_delay_ms=6000
           fi
-          mvn -B org.owasp:dependency-check-maven:12.2.2:check
+
+          for attempt in 1 2 3; do
+            if mvn -B org.owasp:dependency-check-maven:12.2.2:update-only \
+              -DnvdApiDelay="${nvd_delay_ms}"; then
+              exit 0
+            fi
+
+            if [ "${attempt}" -eq 3 ]; then
+              echo "::error::Unable to update Dependency-Check data after ${attempt} attempts."
+              exit 1
+            fi
+
+            backoff_seconds=$((attempt * 60))
+            echo "::warning::Dependency-Check data update attempt ${attempt} failed; retrying in ${backoff_seconds}s."
+            sleep "${backoff_seconds}"
+          done
+      - name: Save Dependency-Check vulnerability data
+        if: steps.dependency-check-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-12.2.2-${{ steps.dependency-check-cache-key.outputs.week }}
+      - name: Maven dependency CVSS gate
+        working-directory: aimall-server
+        run: mvn -B org.owasp:dependency-check-maven:12.2.2:check -DautoUpdate=false
       - name: npm dependency gates
         run: npm --prefix aimall-web ci --include=dev --no-audit && npm --prefix aimall-web audit --audit-level=high && npm --prefix aimall-admin ci --include=dev --no-audit && npm --prefix aimall-admin audit --audit-level=high
       - name: pip dependency gate
