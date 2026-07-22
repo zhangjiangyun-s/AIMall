@@ -37,11 +37,28 @@ jobs:
             aimall-admin/package-lock.json
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
+      - name: Resolve Dependency-Check cache key
+        id: dependency-check-cache-key
+        shell: bash
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache Dependency-Check vulnerability data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-12.2.2-${{ steps.dependency-check-cache-key.outputs.week }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-12.2.2-
       - name: SAST - Semgrep OWASP Top Ten
         run: pip install semgrep && semgrep scan --config p/owasp-top-ten --error aimall-server/src/main aimall-ai-service/app aimall-web/src aimall-admin/src
       - name: Maven dependency CVSS gate
         working-directory: aimall-server
-        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "${NVD_API_KEY:-}" ]; then
+            echo "::warning::NVD_API_KEY is unavailable; Dependency-Check will use the rate-limited NVD API."
+          fi
+          mvn -B dependency-check:check
       - name: npm dependency gates
         run: npm --prefix aimall-web ci --include=dev --no-audit && npm --prefix aimall-web audit --audit-level=high && npm --prefix aimall-admin ci --include=dev --no-audit && npm --prefix aimall-admin audit --audit-level=high
       - name: pip dependency gate

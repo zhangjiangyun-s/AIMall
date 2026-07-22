@@ -81,12 +81,29 @@ jobs:
         with: { distribution: temurin, java-version: "17", cache: maven }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - name: Resolve Dependency-Check cache key
+        id: dependency-check-cache-key
+        shell: bash
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache Dependency-Check vulnerability data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-12.2.2-${{ steps.dependency-check-cache-key.outputs.week }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-12.2.2-
       - name: Python audit
         working-directory: aimall-ai-service
         run: python -m pip install -r requirements.txt pip-audit && pip-audit -r requirements.txt
       - name: Maven audit
         working-directory: aimall-server
-        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "${NVD_API_KEY:-}" ]; then
+            echo "::warning::NVD_API_KEY is unavailable; Dependency-Check will use the rate-limited NVD API."
+          fi
+          mvn -B dependency-check:check
 
   static-gates:
     runs-on: windows-latest
