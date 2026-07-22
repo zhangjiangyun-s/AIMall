@@ -233,4 +233,6 @@ docker compose --env-file .env.docker.local -f docker-compose.full.yml config --
 
 ## 许可证
 
-当前仓库尚未包含开源许可证。公开发布前请根据项目用途添加合适的 `LICENSE` 文件；在许可证明确前，不应视为已经授予复制、修改或商业使用权限。
+本项目采用 [MIT License](LICENSE) 开源。你可以使用、复制、修改、合并、发布、分发、再授权和销售本项目的副本，但必须保留原始版权声明和许可证文本。
+
+第三方依赖、外部 API、模型、字体、图片及知识数据仍遵循其各自的许可证或服务条款。
