@@ -8,8 +8,35 @@ from pathlib import Path
 from typing import Any
 
 
+STAGE_EVIDENCE_PATHS = {
+    "stage7": ".acceptance/stage7/security-gate.json",
+    "stage8": ".acceptance/stage8/encoding-gate.json",
+    "stage14": ".acceptance/stage14/ledger-gate.json",
+    "stage15": ".acceptance/stage15/final-summary.json",
+    "stage16": ".acceptance/stage16/final-summary.json",
+    "stage17": ".acceptance/stage17/final-summary.json",
+    "stage18": ".acceptance/stage18/final-summary.json",
+    "stage19": ".acceptance/stage19/quality-gate.json",
+    "stage20": ".acceptance/stage20/quality-gate.json",
+    "stage21": ".acceptance/stage21/quality-gate.json",
+    "stage22": ".acceptance/stage22/quality-gate.json",
+    "stage22_security": ".acceptance/stage22/security-gate.json",
+    "stage22_e2e": ".acceptance/stage22/e2e-execution-gate.json",
+}
+
+
 def read_json(root: Path, relative: str) -> dict[str, Any]:
     return json.loads((root / relative).read_text(encoding="utf-8-sig"))
+
+
+def load_stage_evidence(root: Path) -> dict[str, dict[str, Any]]:
+    evidence: dict[str, dict[str, Any]] = {}
+    for name, relative in STAGE_EVIDENCE_PATHS.items():
+        try:
+            evidence[name] = read_json(root, relative)
+        except FileNotFoundError:
+            evidence[name] = {}
+    return evidence
 
 
 def bool_at(document: dict[str, Any], *paths: tuple[str, ...]) -> bool:
@@ -58,20 +85,27 @@ def stage_production(document: dict[str, Any]) -> bool:
     )
 
 
-def evaluate(root: Path, policy: dict[str, Any], ledger: dict[str, Any], signoff: dict[str, Any]) -> dict[str, Any]:
-    stage7 = read_json(root, ".acceptance/stage7/security-gate.json")
-    stage8 = read_json(root, ".acceptance/stage8/encoding-gate.json")
-    stage14 = read_json(root, ".acceptance/stage14/ledger-gate.json")
-    stage15 = read_json(root, ".acceptance/stage15/final-summary.json")
-    stage16 = read_json(root, ".acceptance/stage16/final-summary.json")
-    stage17 = read_json(root, ".acceptance/stage17/final-summary.json")
-    stage18 = read_json(root, ".acceptance/stage18/final-summary.json")
-    stage19 = read_json(root, ".acceptance/stage19/quality-gate.json")
-    stage20 = read_json(root, ".acceptance/stage20/quality-gate.json")
-    stage21 = read_json(root, ".acceptance/stage21/quality-gate.json")
-    stage22 = read_json(root, ".acceptance/stage22/quality-gate.json")
-    stage22_security = read_json(root, ".acceptance/stage22/security-gate.json")
-    stage22_e2e = read_json(root, ".acceptance/stage22/e2e-execution-gate.json")
+def evaluate(
+    root: Path,
+    policy: dict[str, Any],
+    ledger: dict[str, Any],
+    signoff: dict[str, Any],
+    stage_evidence: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    stages = load_stage_evidence(root) if stage_evidence is None else stage_evidence
+    stage7 = stages.get("stage7", {})
+    stage8 = stages.get("stage8", {})
+    stage14 = stages.get("stage14", {})
+    stage15 = stages.get("stage15", {})
+    stage16 = stages.get("stage16", {})
+    stage17 = stages.get("stage17", {})
+    stage18 = stages.get("stage18", {})
+    stage19 = stages.get("stage19", {})
+    stage20 = stages.get("stage20", {})
+    stage21 = stages.get("stage21", {})
+    stage22 = stages.get("stage22", {})
+    stage22_security = stages.get("stage22_security", {})
+    stage22_e2e = stages.get("stage22_e2e", {})
     version = (root / "docs/RELEASE_VERSION.txt").read_text(encoding="utf-8").strip()
     open_blockers = [item for item in ledger.get("blockers", []) if item.get("status") != "CLOSED" and item.get("severity") in {"P0", "P1"}]
     ledger_valid = (

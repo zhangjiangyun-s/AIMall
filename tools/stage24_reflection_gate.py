@@ -27,7 +27,12 @@ def decision_complete(item: dict[str, Any]) -> bool:
     )
 
 
-def evaluate(root: Path, policy: dict[str, Any], decisions: dict[str, Any]) -> dict[str, Any]:
+def evaluate(
+    root: Path,
+    policy: dict[str, Any],
+    decisions: dict[str, Any],
+    stage23_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     outbox_service = read_text(root, "aimall-server/src/main/java/com/aimall/server/service/impl/OutboxEventService.java")
     outbox_worker = read_text(root, "aimall-server/src/main/java/com/aimall/server/service/impl/OutboxWorker.java")
     outbox_mapper = read_text(root, "aimall-server/src/main/java/com/aimall/server/mapper/OutboxEventMapper.java")
@@ -40,7 +45,13 @@ def evaluate(root: Path, policy: dict[str, Any], decisions: dict[str, Any]) -> d
     ai_settings = read_text(root, "aimall-ai-service/app/config/settings.py")
     ai_schema = read_text(root, "aimall-ai-service/app/schemas/chat_schema.py")
     milvus = read_text(root, "aimall-ai-service/app/rag/milvus_store.py")
-    stage23 = read_json(root, ".acceptance/stage23/release-decision.json")
+    if stage23_result is None:
+        try:
+            stage23 = read_json(root, ".acceptance/stage23/release-decision.json")
+        except FileNotFoundError:
+            stage23 = {}
+    else:
+        stage23 = stage23_result
 
     checks = {
         "R24-01": (

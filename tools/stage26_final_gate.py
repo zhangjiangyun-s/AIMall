@@ -9,10 +9,31 @@ from typing import Any
 
 
 EXPECTED_IDS = [f"F26-{index:02d}" for index in range(1, 11)]
+STAGE_EVIDENCE_PATHS = {
+    "stage8": ".acceptance/stage8/encoding-gate.json",
+    "stage19": ".acceptance/stage19/final-summary.json",
+    "stage21": ".acceptance/stage21/final-summary.json",
+    "stage22": ".acceptance/stage22/final-summary.json",
+    "stage22_e2e": ".acceptance/stage22/e2e-execution-gate.json",
+    "stage22_security": ".acceptance/stage22/security-gate.json",
+    "stage23": ".acceptance/stage23/final-summary.json",
+    "stage24": ".acceptance/stage24/final-summary.json",
+    "stage25": ".acceptance/stage25/quality-gate.json",
+}
 
 
 def read_json(root: Path, relative: str) -> dict[str, Any]:
     return json.loads((root / relative).read_text(encoding="utf-8-sig"))
+
+
+def load_stage_evidence(root: Path) -> dict[str, dict[str, Any]]:
+    evidence: dict[str, dict[str, Any]] = {}
+    for name, relative in STAGE_EVIDENCE_PATHS.items():
+        try:
+            evidence[name] = read_json(root, relative)
+        except FileNotFoundError:
+            evidence[name] = {}
+    return evidence
 
 
 def _stage25_map(document: dict[str, Any], key: str) -> dict[str, bool]:
@@ -36,16 +57,21 @@ def _signoff_complete(signoff: dict[str, Any]) -> bool:
     )
 
 
-def evaluate(root: Path, policy: dict[str, Any]) -> dict[str, Any]:
-    stage8 = read_json(root, ".acceptance/stage8/encoding-gate.json")
-    stage19 = read_json(root, ".acceptance/stage19/final-summary.json")
-    stage21 = read_json(root, ".acceptance/stage21/final-summary.json")
-    stage22 = read_json(root, ".acceptance/stage22/final-summary.json")
-    stage22_e2e = read_json(root, ".acceptance/stage22/e2e-execution-gate.json")
-    stage22_security = read_json(root, ".acceptance/stage22/security-gate.json")
-    stage23 = read_json(root, ".acceptance/stage23/final-summary.json")
-    stage24 = read_json(root, ".acceptance/stage24/final-summary.json")
-    stage25 = read_json(root, ".acceptance/stage25/quality-gate.json")
+def evaluate(
+    root: Path,
+    policy: dict[str, Any],
+    stage_evidence: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    stages = load_stage_evidence(root) if stage_evidence is None else stage_evidence
+    stage8 = stages.get("stage8", {})
+    stage19 = stages.get("stage19", {})
+    stage21 = stages.get("stage21", {})
+    stage22 = stages.get("stage22", {})
+    stage22_e2e = stages.get("stage22_e2e", {})
+    stage22_security = stages.get("stage22_security", {})
+    stage23 = stages.get("stage23", {})
+    stage24 = stages.get("stage24", {})
+    stage25 = stages.get("stage25", {})
     owners = read_json(root, "docs/operations/stage25-owner-registry.json")
     signoff = read_json(root, "docs/operations/stage23-production-signoff.json")
     blockers = read_json(root, "docs/operations/stage23-release-blockers.json")

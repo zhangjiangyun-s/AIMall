@@ -22,9 +22,27 @@ def _current_documents():
     )
 
 
+def _engineering_complete_evidence():
+    return {
+        "stage7": {"passed": True},
+        "stage8": {"passed": True},
+        "stage14": {"structurallyPassed": True},
+        "stage15": {"engineeringPassed": True, "productionPassed": False},
+        "stage16": {"engineeringPassed": True, "productionPassed": False},
+        "stage17": {"engineeringPassed": True, "productionPassed": False},
+        "stage18": {"engineeringPassed": True, "productionPassed": False},
+        "stage19": {"engineeringFullyCompleted": True, "productionReady": False},
+        "stage20": {"engineeringPassed": True, "productionPassed": False},
+        "stage21": {"engineeringPassed": True, "productionPassed": False},
+        "stage22": {"engineeringPassed": True, "productionPassed": False},
+        "stage22_security": {"passed": False},
+        "stage22_e2e": {"passed": False},
+    }
+
+
 def test_current_release_is_fail_closed_with_all_controls_implemented():
     policy, ledger, signoff = _current_documents()
-    result = release_gate.evaluate(ROOT, policy, ledger, signoff)
+    result = release_gate.evaluate(ROOT, policy, ledger, signoff, _engineering_complete_evidence())
     assert result["controlsPassed"] is True
     assert result["controlsPassedCount"] == 7
     assert result["releasePassedCount"] == 0
@@ -55,6 +73,15 @@ def test_signoff_requires_six_approvers_timestamps_evidence_and_manifest_hash():
 
 def test_evidence_manifest_hash_is_stable_for_same_release_facts():
     policy, ledger, signoff = _current_documents()
-    first = release_gate.evaluate(ROOT, policy, ledger, signoff)
-    second = release_gate.evaluate(ROOT, policy, ledger, signoff)
+    evidence = _engineering_complete_evidence()
+    first = release_gate.evaluate(ROOT, policy, ledger, signoff, evidence)
+    second = release_gate.evaluate(ROOT, policy, ledger, signoff, evidence)
     assert first["evidenceManifestSha256"] == second["evidenceManifestSha256"]
+
+
+def test_missing_runtime_evidence_fails_closed():
+    policy, ledger, signoff = _current_documents()
+    result = release_gate.evaluate(ROOT, policy, ledger, signoff, {})
+    assert result["controlsPassed"] is False
+    assert result["releasePassed"] is False
+    assert result["decision"] == "NO_GO"

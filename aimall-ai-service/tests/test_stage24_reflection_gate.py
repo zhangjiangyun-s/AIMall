@@ -21,9 +21,19 @@ def _documents():
     )
 
 
+def _stage23_no_go():
+    return {
+        "controlsPassed": True,
+        "releasePassed": False,
+        "decision": "NO_GO",
+        "controlsPassedCount": 7,
+        "releasePassedCount": 0,
+    }
+
+
 def test_current_reflection_controls_are_complete_but_production_is_not_ready():
     policy, decisions = _documents()
-    result = reflection_gate.evaluate(ROOT, policy, decisions)
+    result = reflection_gate.evaluate(ROOT, policy, decisions, _stage23_no_go())
     assert result["engineeringPassed"] is True
     assert result["engineeringPassedCount"] == 4
     assert result["productionPassed"] is False
@@ -56,6 +66,15 @@ def test_client_trace_is_not_reused_as_trusted_ai_trace():
 
 def test_manifest_is_stable_for_identical_reflection_facts():
     policy, decisions = _documents()
-    first = reflection_gate.evaluate(ROOT, policy, decisions)
-    second = reflection_gate.evaluate(ROOT, policy, decisions)
+    stage23 = _stage23_no_go()
+    first = reflection_gate.evaluate(ROOT, policy, decisions, stage23)
+    second = reflection_gate.evaluate(ROOT, policy, decisions, stage23)
     assert first["evidenceManifestSha256"] == second["evidenceManifestSha256"]
+
+
+def test_missing_stage23_evidence_fails_closed():
+    policy, decisions = _documents()
+    result = reflection_gate.evaluate(ROOT, policy, decisions, {})
+    assert result["engineeringPassed"] is False
+    assert result["productionPassed"] is False
+    assert result["decision"] == "NOT_PRODUCTION_READY"
