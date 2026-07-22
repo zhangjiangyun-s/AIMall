@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "AIMALL_STAGE24_EXTERNAL_DECISIONS_V1",
+  "generatedAt": "2026-07-22T00:00:00+08:00",
+  "decisions": [
+    {
+      "id": "D24-01",
+      "name": "Production payment and refund provider",
+      "status": "UNRESOLVED",
+      "owner": "Business and Payment",
+      "approver": "",
+      "evidenceRefs": [],
+      "blocker": "Alipay sandbox and local reconciliation do not prove production real-funds processing."
+    },
+    {
+      "id": "D24-02",
+      "name": "Production capacity target",
+      "status": "UNRESOLVED",
+      "owner": "SRE and Business",
+      "approver": "",
+      "evidenceRefs": [],
+      "blocker": "No approved production traffic model or production-equivalent 60-minute capacity result."
+    },
+    {
+      "id": "D24-03",
+      "name": "Final RPO and RTO",
+      "status": "UNRESOLVED",
+      "owner": "DBA, SRE and Business",
+      "approver": "",
+      "evidenceRefs": [],
+      "blocker": "Local recovery targets are engineering defaults and have not been approved or proven in production."
+    },
+    {
+      "id": "D24-04",
+      "name": "Tenant operating mode",
+      "status": "RESOLVED",
+      "decision": "SINGLE_TENANT",
+      "owner": "Backend and Security",
+      "approver": "Engineering baseline",
+      "evidenceRefs": [
+        ".acceptance/stage16/key-ledger.json",
+        "aimall-server/src/main/java/com/aimall/server/tenant/TenantPolicy.java",
+        "aimall-ai-service/app/config/settings.py"
+      ],
+      "blocker": ""
+    },
+    {
+      "id": "D24-05",
+      "name": "Compliance retention periods",
+      "status": "UNRESOLVED",
+      "owner": "Security, Legal and Business",
+      "approver": "",
+      "evidenceRefs": [],
+      "blocker": "30/180-day log and audit retention values remain engineering defaults without compliance approval."
+    }
+  ]
+}

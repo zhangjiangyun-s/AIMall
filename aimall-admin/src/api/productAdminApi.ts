@@ -8,49 +8,95 @@ export interface ApiResponse<T> {
 
 export interface Product {
   id: number
+  categoryId: number
   name: string
   category: string
+  productSn: string
   price: number
+  stock: number
+  pic?: string
   status: string
 }
 
-const mockProducts: Product[] = [
-  { id: 1001, name: '学习平板 A1', category: '平板电脑', price: 2999, status: '上架' },
-  { id: 1002, name: '轻薄笔记本 B2', category: '笔记本电脑', price: 3999, status: '上架' },
-  { id: 1003, name: '无线蓝牙耳机 C3', category: '耳机', price: 399, status: '上架' }
-]
-
-let nextId = 1004
-
-export async function getProducts(): Promise<Product[]> {
-  try {
-    const response = await http.get<ApiResponse<Product[]>>('/api/admin/products')
-    return response.data.data
-  } catch {
-    return [...mockProducts]
-  }
+export interface ProductCategory {
+  id: number
+  name: string
 }
 
-export function addProduct(product: Omit<Product, 'id'>): Promise<Product> {
-  const newProduct = { ...product, id: nextId++ }
-  mockProducts.push(newProduct)
-  return Promise.resolve(newProduct)
+export type ProductPayload = Omit<Product, 'id' | 'category'>
+
+export interface ProductPage {
+  list: Product[]
+  total: number
+  page: number
+  size: number
 }
 
-export function updateProduct(id: number, product: Partial<Product>): Promise<Product> {
-  const index = mockProducts.findIndex((p) => p.id === id)
-  if (index !== -1) {
-    mockProducts[index] = { ...mockProducts[index], ...product }
-    return Promise.resolve(mockProducts[index])
-  }
-  return Promise.reject(new Error('商品不存在'))
+export interface ProductPriceRule {
+  id?: number
+  productId: number
+  skuId?: number | null
+  ruleType: 'MEMBER' | 'ACTIVITY'
+  ruleName: string
+  memberLevel?: string | null
+  price: number
+  perMemberLimit?: number | null
+  priority: number
+  status: number
+  startTime: string
+  endTime: string
 }
 
-export function deleteProduct(id: number): Promise<void> {
-  const index = mockProducts.findIndex((p) => p.id === id)
-  if (index !== -1) {
-    mockProducts.splice(index, 1)
-    return Promise.resolve()
-  }
-  return Promise.reject(new Error('商品不存在'))
+export async function getProducts(page = 1, size = 20): Promise<ProductPage> {
+  const response = await http.get<ApiResponse<ProductPage>>('/api/admin/products', { params: { page, size } })
+  return response.data.data
+}
+
+export async function getProductCategories(): Promise<ProductCategory[]> {
+  const response = await http.get<ApiResponse<ProductCategory[]>>('/api/admin/products/categories')
+  return response.data.data
+}
+
+export async function addProduct(product: ProductPayload): Promise<Product> {
+  const response = await http.post<ApiResponse<Product>>('/api/admin/products', product)
+  return response.data.data
+}
+
+export async function updateProduct(id: number, product: Partial<ProductPayload>): Promise<Product> {
+  const response = await http.put<ApiResponse<Product>>(`/api/admin/products/${id}`, product)
+  return response.data.data
+}
+
+export async function changeProductPublishState(id: number, published: boolean): Promise<Product> {
+  const response = await http.post<ApiResponse<Product>>(
+    `/api/admin/product-operations/products/${id}/publish-state`,
+    { published }
+  )
+  return response.data.data
+}
+
+export async function deleteProduct(id: number): Promise<void> {
+  await http.delete(`/api/admin/products/${id}`)
+}
+
+export async function getProductPriceRules(productId: number): Promise<ProductPriceRule[]> {
+  const response = await http.get<ApiResponse<ProductPriceRule[]>>(
+    `/api/admin/product-operations/products/${productId}/price-rules`
+  )
+  return response.data.data
+}
+
+export async function saveProductPriceRule(
+  productId: number,
+  rule: Omit<ProductPriceRule, 'productId'>
+): Promise<ProductPriceRule> {
+  const response = await http.post<ApiResponse<ProductPriceRule>>(
+    `/api/admin/product-operations/products/${productId}/price-rules`,
+    rule
+  )
+  return response.data.data
+}
+
+export async function disableProductPriceRule(ruleId: number): Promise<void> {
+  await http.post(`/api/admin/product-operations/price-rules/${ruleId}/disable`)
 }

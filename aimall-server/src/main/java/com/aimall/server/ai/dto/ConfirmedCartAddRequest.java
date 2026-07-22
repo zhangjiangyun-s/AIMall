@@ -1,0 +1,3 @@
+package com.aimall.server.ai.dto;
+import jakarta.validation.constraints.*; import java.util.*;
+public record ConfirmedCartAddRequest(@NotBlank @Size(max=64) String actionId,@NotNull @Positive Long productId,@Positive Long productSkuId,@Min(1) @Max(99) Integer quantity) implements ConfirmedActionRequest{public int resolvedQuantity(){return quantity==null?1:quantity;}public Map<String,Object> toPayload(){Map<String,Object>v=new LinkedHashMap<>();v.put("actionId",actionId);v.put("productId",productId);if(productSkuId!=null)v.put("productSkuId",productSkuId);v.put("quantity",resolvedQuantity());return v;}}

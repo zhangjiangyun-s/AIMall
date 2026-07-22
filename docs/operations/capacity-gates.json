@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "AIMALL_CAPACITY_GATES_V1",
+  "metadataRequired": [
+    "runId",
+    "startedAt",
+    "sourceRevision",
+    "hardware",
+    "dataVolume",
+    "model",
+    "cacheHitRate",
+    "concurrencyModel"
+  ],
+  "releaseSoakGate": {
+    "minimumDurationSeconds": 3600,
+    "cpuUtilizationMax": 0.70,
+    "memoryUtilizationMax": 0.75,
+    "databasePoolUtilizationMax": 0.70,
+    "p99LockWaitMsMax": 500,
+    "businessErrorRateMax": 0.001,
+    "requiredContext": [
+      "production-equivalent data volume",
+      "instance specification",
+      "model version",
+      "concurrency",
+      "cache hit rate",
+      "degradation behavior"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "LOGIN_PEAK",
+      "kind": "HTTP",
+      "base": "java",
+      "path": "/api/user/login",
+      "method": "POST",
+      "bodyEnv": "STAGE21_LOGIN_BODY_JSON",
+      "contentType": "application/json",
+      "requiredEnv": ["STAGE21_LOGIN_BODY_JSON"],
+      "sideEffect": true,
+      "targetRps": 100,
+      "concurrency": 100,
+      "warmupSeconds": 15,
+      "durationSeconds": 60,
+      "timeoutSeconds": 5,
+      "p95Ms": 300,
+      "errorRateMax": 0.01,
+      "expectedStatuses": [200]
+    },
+    {
+      "id": "ORDER_CREATE_PEAK",
+      "kind": "HTTP",
+      "base": "java",
+      "path": "/api/orders/create",
+      "method": "POST",
+      "bodyEnv": "STAGE21_ORDER_BODY_JSON",
+      "contentType": "application/json",
+      "headerEnv": {"token": "STAGE21_MEMBER_TOKEN"},
+      "requiredEnv": ["STAGE21_ORDER_BODY_JSON", "STAGE21_MEMBER_TOKEN"],
+      "sideEffect": true,
+      "targetRps": 30,
+      "concurrency": 30,
+      "warmupSeconds": 15,
+      "durationSeconds": 60,
+      "timeoutSeconds": 8,
+      "p95Ms": 800,
+      "p99Ms": 1500,
+      "errorRateMax": 0,
+      "expectedStatuses": [200]
+    },
+    {
+      "id": "PAYMENT_CALLBACK_PEAK",
+      "kind": "HTTP",
+      "base": "java",
+      "path": "/api/pay/alipay/notify",
+      "method": "POST",
+      "bodyEnv": "STAGE21_PAYMENT_CALLBACK_FORM",
+      "contentType": "application/x-www-form-urlencoded",
+      "requiredEnv": ["STAGE21_PAYMENT_CALLBACK_FORM"],
+      "sideEffect": true,
+      "targetRps": 100,
+      "concurrency": 100,
+      "warmupSeconds": 15,
+      "durationSeconds": 60,
+      "timeoutSeconds": 5,
+      "p95Ms": 300,
+      "errorRateMax": 0,
+      "expectedStatuses": [200],
+      "requiredInvariant": "Verified callback evidence is committed before asynchronous processing."
+    },
+    {
+      "id": "AI_REQUEST_CONCURRENCY",
+      "kind": "HTTP",
+      "base": "java",
+      "path": "/api/ai/chat",
+      "method": "POST",
+      "bodyEnv": "STAGE21_AI_BODY_JSON",
+      "contentType": "application/json",
+      "headerEnv": {"token": "STAGE21_MEMBER_TOKEN"},
+      "requiredEnv": ["STAGE21_AI_BODY_JSON", "STAGE21_MEMBER_TOKEN"],
+      "sideEffect": false,
+      "targetRps": 4,
+      "concurrency": 20,
+      "warmupSeconds": 30,
+      "durationSeconds": 120,
+      "timeoutSeconds": 180,
+      "p95Ms": 8000,
+      "errorRateMax": 0.02,
+      "expectedStatuses": [200]
+    },
+    {
+      "id": "SSE_CONNECTIONS",
+      "kind": "SSE",
+      "base": "java",
+      "path": "/api/ai/chat",
+      "method": "POST",
+      "bodyEnv": "STAGE21_AI_BODY_JSON",
+      "contentType": "application/json",
+      "headerEnv": {"token": "STAGE21_MEMBER_TOKEN"},
+      "requiredEnv": ["STAGE21_AI_BODY_JSON", "STAGE21_MEMBER_TOKEN"],
+      "sideEffect": false,
+      "targetConnections": 200,
+      "concurrency": 200,
+      "warmupSeconds": 15,
+      "durationSeconds": 60,
+      "timeoutSeconds": 180,
+      "errorRateMax": 0.01,
+      "expectedStatuses": [200]
+    },
+    {
+      "id": "REDIS_POOL_UTILIZATION",
+      "kind": "METRIC",
+      "metric": "aimall_ai_redis_pool_utilization",
+      "max": 0.70
+    },
+    {
+      "id": "MYSQL_POOL_AND_LOCK_WAIT",
+      "kind": "METRIC",
+      "metrics": {
+        "hikaricp_connections_active/hikaricp_connections_max": 0.70,
+        "aimall_mysql_row_lock_time_max_ms": 500
+      },
+      "comparison": "Both conservative upper bounds must remain below their limits."
+    },
+    {
+      "id": "MILVUS_RETRIEVAL",
+      "kind": "METRIC",
+      "metric": "aimall_ai_rag_latency_ms_p95",
+      "max": 500
+    }
+  ]
+}

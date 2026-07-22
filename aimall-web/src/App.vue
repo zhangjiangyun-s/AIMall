@@ -1,127 +1,102 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import AiAssistant from "./components/AiAssistant.vue";
-import { fetchIntegrationHealth } from "./api/healthApi";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import AiAssistantDrawer from "./components/ai/AiAssistantDrawer.vue";
+import AppFooter from "./components/layout/AppFooter.vue";
+import AppHeader from "./components/layout/AppHeader.vue";
+import AppTopbar from "./components/layout/AppTopbar.vue";
+import CategoryNav from "./components/layout/CategoryNav.vue";
+import { clearAiSession } from "./api/aiApi";
+import { logout } from "./api/userApi";
 
-const integrationStatus = ref("OFFLINE");
-const integrationService = ref("aimall-server");
-const databaseConnected = ref("未接入");
+const route = useRoute();
+const router = useRouter();
+const token = ref("");
+const userNickname = ref("");
 
-onMounted(async () => {
+const isAuthPage = computed(() => route.name === "Login" || route.name === "Register");
+const isLoggedIn = computed(() => !!token.value);
+
+function syncAuthState() {
+  token.value = localStorage.getItem("token") || "";
+
   try {
-    const res = await fetchIntegrationHealth();
-    if (res.data.code === 0) {
-      integrationStatus.value = res.data.data.status;
-      integrationService.value = res.data.data.service;
-      databaseConnected.value = res.data.data.modules.database ? "已接入" : "未接入";
+    const raw = localStorage.getItem("userInfo");
+    if (raw) {
+      const info = JSON.parse(raw);
+      userNickname.value = info.nickname || info.username || "";
+      return;
     }
   } catch {
-    // fallback — keep default OFFLINE / aimall-server / 未接入
+    // ignore invalid cached user info
   }
-});
+
+  userNickname.value = "";
+}
+
+async function handleLogout() {
+  const loginSessionId = localStorage.getItem("aimall_login_session_id");
+  const rawUserInfo = localStorage.getItem("userInfo");
+  if (loginSessionId && rawUserInfo) {
+    try {
+      const info = JSON.parse(rawUserInfo);
+      const userId = String(info.id || info.username || "guest");
+      localStorage.removeItem(`aimall_ai_conversation_${userId}_${loginSessionId}`);
+    } catch {
+      // ignore invalid cached user info
+    }
+  }
+  if (loginSessionId) {
+    try {
+      await clearAiSession(`ai_session_${loginSessionId}`);
+    } catch {
+      // The local login boundary still changes, so stale server memory is no longer addressable.
+    }
+  }
+  try {
+    await logout();
+  } finally {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userInfo");
+    localStorage.removeItem("aimall_login_session_id");
+    localStorage.removeItem("aimall_login_session_token");
+    syncAuthState();
+    router.push("/login");
+  }
+}
+
+onMounted(syncAuthState);
+watch(() => route.fullPath, syncAuthState);
+window.addEventListener("storage", syncAuthState);
 </script>
 
 <template>
-  <div id="app-layout">
-    <header class="app-header">
-      <div class="header-inner">
-        <router-link to="/products" class="logo">aimall-web</router-link>
-        <nav class="nav-links">
-          <router-link to="/products">商品</router-link>
-          <router-link to="/orders">订单</router-link>
-        </nav>
-      </div>
-      <div class="health-bar">
-        <span :class="['health-status', integrationStatus === 'UP' ? 'up' : 'offline']">
-          联调状态：{{ integrationStatus }}
-        </span>
-        <span class="health-divider">|</span>
-        <span>后端：{{ integrationService }}</span>
-        <span class="health-divider">|</span>
-        <span>数据库：{{ databaseConnected }}</span>
-      </div>
-    </header>
-    <main class="app-main">
-      <router-view />
-    </main>
-    <AiAssistant />
-  </div>
+  <template v-if="isAuthPage">
+    <router-view />
+  </template>
+
+  <template v-else>
+    <div id="app-layout">
+      <AppTopbar :isLoggedIn="isLoggedIn" :userNickname="userNickname" @logout="handleLogout" />
+      <AppHeader :isLoggedIn="isLoggedIn" :userNickname="userNickname" />
+      <CategoryNav />
+      <main class="app-main">
+        <router-view />
+      </main>
+      <AppFooter />
+      <AiAssistantDrawer />
+    </div>
+  </template>
 </template>
 
 <style scoped>
-.app-header {
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-inner {
-  max-width: 1200px;
-  margin: 0 auto;
+#app-layout {
+  min-height: 100vh;
   display: flex;
-  align-items: center;
-  height: 56px;
-  padding: 0 20px;
-}
-
-.logo {
-  font-size: 18px;
-  font-weight: 700;
-  color: #409eff;
-}
-
-.nav-links {
-  margin-left: 32px;
-  display: flex;
-  gap: 16px;
-}
-
-.nav-links a {
-  font-size: 14px;
-  color: #333;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.nav-links a:hover,
-.nav-links a.router-link-exact-active {
-  color: #409eff;
-  background: #ecf5ff;
-  text-decoration: none;
-}
-
-.health-bar {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 6px 20px;
-  font-size: 12px;
-  color: #666;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.health-status {
-  font-weight: 600;
-}
-
-.health-status.up {
-  color: #67c23a;
-}
-
-.health-status.offline {
-  color: #f56c6c;
-}
-
-.health-divider {
-  color: #dcdfe6;
+  flex-direction: column;
 }
 
 .app-main {
-  max-width: 1200px;
-  margin: 20px auto;
-  padding: 0 20px;
+  flex: 1;
 }
 </style>

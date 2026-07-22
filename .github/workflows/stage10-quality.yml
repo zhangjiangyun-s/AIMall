@@ -1,0 +1,101 @@
+name: stage10-quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-and-ai:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: stage10-root
+          MYSQL_DATABASE: aimall
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pstage10-root"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: aimall-ai-service/requirements.txt }
+      - name: Java unit tests
+        working-directory: aimall-server
+        run: mvn -B test
+      - name: Java real MySQL tests
+        working-directory: aimall-server
+        env:
+          AIMALL_DB_USERNAME: root
+          AIMALL_DB_PASSWORD: stage10-root
+        run: mvn -B -Daimall.mysql.integration=true -Dtest=MySqlConcurrencyIntegrationTest,FlywayMigrationIntegrationTest test
+      - name: Python tests
+        working-directory: aimall-ai-service
+        run: |
+          python -m pip install -r requirements.txt pytest
+          python -m pytest -q
+      - name: Real Redis lease test
+        working-directory: aimall-ai-service
+        env:
+          RUN_REAL_REDIS_TESTS: "1"
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: python -m pytest tests/test_stage6_real_redis.py -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm, cache-dependency-path: aimall-web/package-lock.json }
+      - name: Web install and audit
+        working-directory: aimall-web
+        run: npm ci && npm audit --audit-level=high
+      - name: Web component tests and build
+        working-directory: aimall-web
+        run: npm test && npm run build
+      - name: Playwright Chrome E2E
+        working-directory: aimall-web
+        run: npm run test:e2e
+      - name: Admin install, typecheck and build
+        working-directory: aimall-admin
+        run: npm ci && npm run build
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Python audit
+        working-directory: aimall-ai-service
+        run: python -m pip install -r requirements.txt pip-audit && pip-audit -r requirements.txt
+      - name: Maven audit
+        working-directory: aimall-server
+        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+
+  static-gates:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage 7 security gate
+        shell: pwsh
+        run: ./scripts/stage7-security-gate.ps1
+      - name: Stage 8 encoding gate
+        shell: pwsh
+        run: ./scripts/stage8-encoding-gate.ps1
+      - name: Stage 9 observability gate
+        shell: pwsh
+        run: ./scripts/stage9-observability-gate.ps1
+      - name: Stage 10 quality gate
+        shell: pwsh
+        run: ./scripts/stage10-quality-gate.ps1

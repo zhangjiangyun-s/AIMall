@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "AIMALL_STAGE23_RELEASE_POLICY_V1",
+  "releaseVersion": "1.0.0",
+  "decisionRule": "GO only when all seven gates pass in order, no P0/P1 blocker is open, and all required roles sign the same immutable evidence set.",
+  "gates": [
+    {"id":"GATE-0","name":"File and fact baseline","owners":["Backend","Release Manager"],"prerequisites":[],"evidence":["UTF-8 gate","version baseline","blocker ledger","feature freeze approval"]},
+    {"id":"GATE-1","name":"Security and exposure surface","owners":["Security","SRE"],"prerequisites":["GATE-0"],"evidence":["production fail-fast","TLS/AV","CORS/CSRF","health/Swagger/ports","key rotation","nine security reports"]},
+    {"id":"GATE-2","name":"Transaction facts","owners":["Backend","DBA","Payment","Business"],"prerequisites":["GATE-1"],"evidence":["Outbox","payment/refund states","inventory ledger","coupon facts","reconciliation","real MySQL races","real funds drill"]},
+    {"id":"GATE-3","name":"AI and RAG","owners":["AI Platform","Security"],"prerequisites":["GATE-2"],"evidence":["Redis policy","Action fencing","tenant isolation","RAG epoch/deletion","quality gate","fault injection"]},
+    {"id":"GATE-4","name":"Migration and disaster recovery","owners":["DBA","SRE","Security"],"prerequisites":["GATE-3"],"evidence":["empty/upgrade/partial Flyway","encrypted offsite backup","PITR RPO/RTO","Redis/Milvus recovery"]},
+    {"id":"GATE-5","name":"Capacity and canary","owners":["SRE","Backend","AI Platform"],"prerequisites":["GATE-4"],"evidence":["initial performance gates","tenant/user canary","automatic trip","rapid rollback","on-call drill"]},
+    {"id":"GATE-6","name":"Production sign-off","owners":["QA","Security","DBA","SRE","Backend","Business"],"prerequisites":["GATE-5"],"evidence":["ten E2E cases","nine security reports","zero open P0/P1","real funds","tenant isolation","recovery drill","six signatures"]}
+  ]
+}

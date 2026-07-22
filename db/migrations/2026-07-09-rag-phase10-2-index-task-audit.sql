@@ -1,0 +1,52 @@
+USE aimall;
+
+CREATE TABLE IF NOT EXISTS `knowledge_index_task` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `batch_id` varchar(64) DEFAULT NULL,
+  `doc_id` bigint DEFAULT NULL,
+  `chunk_id` bigint DEFAULT NULL,
+  `task_type` varchar(32) NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `trigger_type` varchar(32) NOT NULL DEFAULT 'MANUAL',
+  `queue_name` varchar(64) NOT NULL DEFAULT 'DEFAULT',
+  `shard_key` varchar(128) DEFAULT NULL,
+  `priority` int NOT NULL DEFAULT 100,
+  `retry_count` int NOT NULL DEFAULT 0,
+  `max_retry` int NOT NULL DEFAULT 3,
+  `alert_enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `alert_channel` varchar(128) DEFAULT NULL,
+  `chunk_strategy_version` varchar(64) DEFAULT NULL,
+  `embedding_model` varchar(128) DEFAULT NULL,
+  `embedding_model_version` varchar(64) DEFAULT NULL,
+  `index_version` varchar(64) DEFAULT NULL,
+  `locked_by` varchar(128) DEFAULT NULL,
+  `lock_until` datetime DEFAULT NULL,
+  `error_code` varchar(64) DEFAULT NULL,
+  `error_message` varchar(1000) DEFAULT NULL,
+  `started_at` datetime DEFAULT NULL,
+  `finished_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_knowledge_index_task_doc` (`doc_id`, `task_type`, `status`),
+  KEY `idx_knowledge_index_task_chunk` (`chunk_id`, `task_type`, `status`),
+  KEY `idx_knowledge_index_task_batch` (`batch_id`),
+  KEY `idx_knowledge_index_task_status` (`status`, `priority`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `knowledge_doc_audit_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `doc_id` bigint DEFAULT NULL,
+  `chunk_id` bigint DEFAULT NULL,
+  `action` varchar(32) NOT NULL,
+  `operator_id` bigint DEFAULT NULL,
+  `operator_role` varchar(64) DEFAULT NULL,
+  `before_snapshot_json` json DEFAULT NULL,
+  `after_snapshot_json` json DEFAULT NULL,
+  `reason` varchar(500) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_knowledge_doc_audit_doc` (`doc_id`, `created_at`),
+  KEY `idx_knowledge_doc_audit_chunk` (`chunk_id`, `created_at`),
+  KEY `idx_knowledge_doc_audit_action` (`action`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

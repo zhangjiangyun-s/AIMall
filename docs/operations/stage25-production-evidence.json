@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "AIMALL_STAGE25_PRODUCTION_EVIDENCE_V1",
+  "environment": "production",
+  "rule": "Local, mock and sandbox results cannot verify these entries.",
+  "evidence": [
+    {"id":"S25-01","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"Zero-difference conversion, sampled reconciliation, a full settlement cycle and rollback backup verification are missing."},
+    {"id":"S25-02","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"No approved production mode transition, provider configuration or gray-release evidence is registered."},
+    {"id":"S25-03","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"No production worker takeover, duplicate-delivery and dead-letter recovery drill is registered."},
+    {"id":"S25-04","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"No production-equivalent payment review, chargeback and concurrent shipment drill is registered."},
+    {"id":"S25-05","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"The approved single-tenant production deployment and tenant-leakage evidence are missing."},
+    {"id":"S25-06","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"No deployed network-boundary and capability-degradation smoke report is registered."},
+    {"id":"S25-07","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"Named independent reviewers, adjudicator, three signed runs and leakage audit are missing."},
+    {"id":"S25-08","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"Production PITR, offsite backup, Redis AOF, Milvus rebuild and 60-minute capacity evidence are missing."},
+    {"id":"S25-09","status":"UNVERIFIED","owner":"","approver":"","verifiedAt":"","evidenceRefs":[],"blocker":"Real owner, backup, approver, due date and evidence fields remain blank."}
+  ]
+}

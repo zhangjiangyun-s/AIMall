@@ -1,0 +1,10 @@
+-- Deprecated compatibility file.
+-- The active Docker bootstrap mounts:
+--   aimall-server/src/main/resources/schema.sql
+--   aimall-server/src/main/resources/data.sql
+-- directly into /docker-entrypoint-initdb.d/.
+--
+-- Do not bring back the old simplified schema here.
+-- To rebuild the database locally, run:
+--   scripts/dev/reset-local-db.ps1 -ConfirmReset
+-- or start the backend once with the reset profile.

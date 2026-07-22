@@ -1,0 +1,73 @@
+USE aimall;
+
+ALTER TABLE `knowledge_doc`
+  ADD COLUMN `source_system` varchar(64) NOT NULL DEFAULT 'manual' AFTER `version`,
+  ADD COLUMN `source_uri` varchar(500) DEFAULT NULL AFTER `source_system`,
+  ADD COLUMN `source_hash` varchar(64) DEFAULT NULL AFTER `source_uri`,
+  ADD COLUMN `external_doc_id` varchar(128) DEFAULT NULL AFTER `source_hash`,
+  ADD COLUMN `visibility_scope` varchar(64) NOT NULL DEFAULT 'PUBLIC_USER' AFTER `external_doc_id`,
+  ADD COLUMN `tenant_id` varchar(64) NOT NULL DEFAULT 'default' AFTER `visibility_scope`,
+  ADD COLUMN `role_scope` varchar(255) DEFAULT NULL AFTER `tenant_id`,
+  ADD COLUMN `category_ids` varchar(500) DEFAULT NULL AFTER `role_scope`,
+  ADD COLUMN `activity_id` varchar(64) DEFAULT NULL AFTER `category_ids`,
+  ADD COLUMN `tags` varchar(500) DEFAULT NULL AFTER `activity_id`,
+  ADD COLUMN `effective_time` datetime DEFAULT NULL AFTER `tags`,
+  ADD COLUMN `expire_time` datetime DEFAULT NULL AFTER `effective_time`,
+  ADD COLUMN `created_by` bigint DEFAULT NULL AFTER `expire_time`,
+  ADD COLUMN `updated_by` bigint DEFAULT NULL AFTER `created_by`,
+  ADD COLUMN `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER `updated_by`,
+  MODIFY COLUMN `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+CREATE INDEX `idx_knowledge_doc_status` ON `knowledge_doc` (`status`);
+CREATE INDEX `idx_knowledge_doc_scope` ON `knowledge_doc` (`tenant_id`, `visibility_scope`);
+CREATE INDEX `idx_knowledge_doc_effective` ON `knowledge_doc` (`effective_time`, `expire_time`);
+CREATE INDEX `idx_knowledge_doc_source_hash` ON `knowledge_doc` (`source_hash`);
+
+CREATE TABLE IF NOT EXISTS `knowledge_chunk` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `doc_id` bigint NOT NULL,
+  `doc_version` int NOT NULL,
+  `chunk_key` varchar(255) NOT NULL,
+  `chunk_no` int NOT NULL,
+  `parent_chunk_id` bigint DEFAULT NULL,
+  `prev_chunk_id` bigint DEFAULT NULL,
+  `next_chunk_id` bigint DEFAULT NULL,
+  `title` varchar(200) NOT NULL,
+  `section_title` varchar(200) DEFAULT NULL,
+  `section_path` json DEFAULT NULL,
+  `original_content` mediumtext,
+  `masked_content` mediumtext,
+  `index_content` mediumtext,
+  `snippet` varchar(1000) DEFAULT NULL,
+  `token_count` int NOT NULL DEFAULT 0,
+  `content_hash` varchar(64) NOT NULL,
+  `source_type` varchar(50) NOT NULL DEFAULT 'POLICY',
+  `source_ref` varchar(128) DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'ACTIVE',
+  `visibility_scope` varchar(64) NOT NULL DEFAULT 'PUBLIC_USER',
+  `tenant_id` varchar(64) NOT NULL DEFAULT 'default',
+  `role_scope` varchar(255) DEFAULT NULL,
+  `category_ids` varchar(500) DEFAULT NULL,
+  `activity_id` varchar(64) DEFAULT NULL,
+  `effective_time` datetime DEFAULT NULL,
+  `expire_time` datetime DEFAULT NULL,
+  `keyword_index_version` varchar(64) DEFAULT NULL,
+  `embedding_id` varchar(128) DEFAULT NULL,
+  `embedding_model` varchar(128) DEFAULT NULL,
+  `embedding_model_version` varchar(64) DEFAULT NULL,
+  `embedding_sync_status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `vector_collection` varchar(128) DEFAULT NULL,
+  `index_version` varchar(64) NOT NULL DEFAULT 'index-v1',
+  `chunk_strategy_version` varchar(64) NOT NULL DEFAULT 'chunk-v1',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_knowledge_chunk_key` (`chunk_key`),
+  KEY `idx_knowledge_chunk_doc` (`doc_id`, `doc_version`, `chunk_no`),
+  KEY `idx_knowledge_chunk_status` (`status`),
+  KEY `idx_knowledge_chunk_scope` (`tenant_id`, `visibility_scope`),
+  KEY `idx_knowledge_chunk_effective` (`effective_time`, `expire_time`),
+  KEY `idx_knowledge_chunk_hash` (`content_hash`),
+  KEY `idx_knowledge_chunk_embedding_sync` (`embedding_sync_status`),
+  CONSTRAINT `fk_knowledge_chunk_doc` FOREIGN KEY (`doc_id`) REFERENCES `knowledge_doc` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,0 +1,189 @@
+groups:
+  - name: aimall-p0
+    rules:
+      - alert: AIMallPaymentInconsistent
+        expr: aimall_payment_unknown > 0 or aimall_payment_reconciliation_open > 0
+        for: 2m
+        labels: {severity: P0, owner: payment-oncall}
+        annotations:
+          impact: "Orders may diverge from provider funds."
+          recovery: "Freeze affected fulfillment, query provider, reconcile and replay fenced recovery."
+          escalation: "Page payment owner immediately; incident commander in 10 minutes."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#payment-inconsistent"
+      - alert: AIMallRefundStuck
+        expr: aimall_refund_unresolved > 0
+        for: 5m
+        labels: {severity: P0, owner: payment-oncall}
+        annotations:
+          impact: "Customer funds or reserved return quantity may remain unresolved."
+          recovery: "Query provider by request id; use manual retry/close only after evidence review."
+          escalation: "Page payment owner immediately; engineering lead in 15 minutes."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#refund-stuck"
+      - alert: AIMallInventoryInvariantBroken
+        expr: aimall_inventory_invalid > 0
+        for: 1m
+        labels: {severity: P0, owner: commerce-oncall}
+        annotations:
+          impact: "Oversell or unavailable stock may be exposed."
+          recovery: "Pause affected products, identify ledger divergence and repair by audited adjustment."
+          escalation: "Page commerce and DBA immediately."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#inventory-invariant"
+      - alert: AIMallDatabaseUnavailable
+        expr: up{job="aimall-server"} == 0
+        for: 1m
+        labels: {severity: P0, owner: platform-oncall}
+        annotations:
+          impact: "Core commerce APIs and Flyway startup may be unavailable."
+          recovery: "Check MySQL, connection pool and latest Flyway history before restarting instances."
+          escalation: "Page platform and DBA immediately."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#database-or-migration"
+      - alert: AIMallRedisUnavailable
+        expr: aimall_ai_redis_up == 0
+        for: 1m
+        labels: {severity: P0, owner: ai-platform-oncall}
+        annotations:
+          impact: "Pending Action fencing, sessions and nonce protection fail closed."
+          recovery: "Restore Redis quorum/connectivity; do not switch production to memory backend."
+          escalation: "Page AI platform immediately."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#redis-unavailable"
+      - alert: AIMallAiFullyDegraded
+        expr: up{job="aimall-ai-service"} == 0 or aimall_ai_degradedrate >= 1
+        for: 3m
+        labels: {severity: P0, owner: ai-platform-oncall}
+        annotations:
+          impact: "AI assistance is unavailable or all requests are degraded."
+          recovery: "Check model routing, Java tools, Redis and Milvus; keep commerce APIs independent."
+          escalation: "Page AI platform; product owner in 15 minutes."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#ai-degraded"
+      - alert: AIMallMilvusUnavailable
+        expr: aimall_ai_milvus_up == 0 or aimall_vector_consistency_mismatch > 0
+        for: 3m
+        labels: {severity: P0, owner: ai-platform-oncall}
+        annotations:
+          impact: "Published knowledge may be missing or inconsistent."
+          recovery: "Stop publication, verify collection/version counts and run consistency repair."
+          escalation: "Page RAG owner immediately."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#milvus-inconsistent"
+
+  - name: aimall-p1
+    rules:
+      - alert: AIMallDeadLetters
+        expr: aimall_outbox_dead_letter > 0 or aimall_knowledge_task_dead_letter > 0 or aimall_vector_delete_dead_letter > 0 or aimall_ai_pending_actions{status="DEAD_LETTER"} > 0
+        for: 5m
+        labels: {severity: P1, owner: platform-oncall}
+        annotations:
+          impact: "Asynchronous work requires manual recovery."
+          recovery: "Inspect traceId and fencing token, repair cause, then replay through supported API."
+          escalation: "Owner in 15 minutes; engineering lead in 30 minutes."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#dead-letters"
+      - alert: AIMallRagNoMatchHigh
+        expr: aimall_ai_ragnomatchrate > 0.40
+        for: 15m
+        labels: {severity: P1, owner: rag-quality}
+        annotations:
+          impact: "Knowledge answers increasingly refuse or miss evidence."
+          recovery: "Check publication versions, embedding failures and evaluation set drift."
+          escalation: "RAG owner in 30 minutes."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#rag-quality"
+      - alert: AIMallLlmCostSpike
+        expr: increase(aimall_ai_llm_cost_usd_total[1h]) > 20
+        for: 5m
+        labels: {severity: P1, owner: ai-platform-oncall}
+        annotations:
+          impact: "Unexpected model spend or request loop."
+          recovery: "Inspect model/purpose counters, rate limit abusive source and disable expensive fallback."
+          escalation: "AI owner in 15 minutes; finance owner in 1 hour."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#llm-cost"
+      - alert: AIMallSseLimitBurst
+        expr: increase(aimall_ai_sse_rejected_total[5m]) > 20
+        for: 5m
+        labels: {severity: P1, owner: ai-platform-oncall}
+        annotations:
+          impact: "Users cannot open AI streams or traffic may be abusive."
+          recovery: "Inspect source distribution and latency before changing limits."
+          escalation: "AI owner in 30 minutes; security if source is abusive."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#sse-limit"
+      - alert: AIMallLoginFailureBurst
+        expr: aimall_login_failures_5m > 30
+        for: 5m
+        labels: {severity: P1, owner: security-oncall}
+        annotations:
+          impact: "Credential stuffing or a broken authentication client may be active."
+          recovery: "Inspect account/IP/device distribution, enforce rate limits and freeze attacked accounts."
+          escalation: "Security owner in 15 minutes; incident commander if privileged accounts are targeted."
+          runbook_url: "docs/AIMALL_STAGE9_OBSERVABILITY_RUNBOOK.md#login-failure-burst"
+
+  - name: aimall-stage21-capacity
+    rules:
+      - alert: AIMallLoginP95Exceeded
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/user/login"}[5m]))) > 0.3
+        for: 5m
+        labels: {severity: P1, owner: identity-oncall}
+        annotations:
+          impact: "Login P95 exceeds the Stage 21 initial capacity gate."
+          recovery: "Stop rollout, inspect authentication, database pool and password hashing saturation."
+          escalation: "Identity and platform owners in 15 minutes."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallOrderLatencyExceeded
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/orders/create"}[5m]))) > 0.8 or histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/orders/create"}[5m]))) > 1.5
+        for: 3m
+        labels: {severity: P0, owner: commerce-oncall}
+        annotations:
+          impact: "Order creation exceeds P95/P99 gates and may amplify inventory lock contention."
+          recovery: "Close canary, preserve request traces and inspect inventory ledger transactions."
+          escalation: "Commerce, platform and DBA immediately."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallPaymentCallbackP95Exceeded
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/pay/alipay/notify"}[5m]))) > 0.3
+        for: 2m
+        labels: {severity: P0, owner: payment-oncall}
+        annotations:
+          impact: "Payment callback persistence is slower than its initial gate."
+          recovery: "Close canary, keep callback ingress durable and reconcile provider evidence."
+          escalation: "Payment and DBA immediately."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallJavaPoolSaturated
+        expr: sum(hikaricp_connections_active) / clamp_min(sum(hikaricp_connections_max), 1) >= 0.70
+        for: 5m
+        labels: {severity: P1, owner: platform-oncall}
+        annotations:
+          impact: "Java database pool utilization exceeds 70 percent."
+          recovery: "Stop rollout and inspect slow SQL or transaction duration before changing pool size."
+          escalation: "Platform and DBA in 15 minutes."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallRedisPoolSaturated
+        expr: aimall_ai_redis_pool_utilization >= 0.70
+        for: 5m
+        labels: {severity: P1, owner: ai-platform-oncall}
+        annotations:
+          impact: "AI Redis connection pool utilization exceeds 70 percent."
+          recovery: "Stop rollout and inspect Action/session concurrency and Redis latency."
+          escalation: "AI platform in 15 minutes."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallMySqlLockWaitExceeded
+        expr: aimall_mysql_row_lock_time_max_ms >= 500
+        for: 1m
+        labels: {severity: P0, owner: dba-oncall}
+        annotations:
+          impact: "Conservative MySQL row-lock wait upper bound exceeds 500ms."
+          recovery: "Close write canary and inspect blocking transactions and inventory hot keys."
+          escalation: "DBA and commerce immediately."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallAiOrMilvusLatencyExceeded
+        expr: aimall_ai_chat_latency_ms_p95 > 8000 or aimall_ai_rag_latency_ms_p95 > 500
+        for: 5m
+        labels: {severity: P1, owner: ai-platform-oncall}
+        annotations:
+          impact: "AI request or Milvus retrieval latency exceeds the Stage 21 gate."
+          recovery: "Close AI canary and inspect model, embedding cache and Milvus query latency."
+          escalation: "AI platform and RAG owners in 15 minutes."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"
+      - alert: AIMallReleaseErrorRateExceeded
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1) > 0.01
+        for: 2m
+        labels: {severity: P0, owner: release-oncall}
+        annotations:
+          impact: "Server error rate exceeds the one-percent canary trip threshold."
+          recovery: "Persistently trip the release flag and roll traffic back to the previous version."
+          escalation: "Release owner and incident commander immediately."
+          runbook_url: "docs/operations/performance-capacity-release.md#automatic-trip"

@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "modes": {
+    "DOC_ONLY": {
+      "minRecallAtK": 0.75,
+      "minMrr": 0.70,
+      "minCitationAccuracy": 0.90,
+      "maxHallucinationRate": 0.10
+    },
+    "HYBRID": {
+      "minRecallAtK": 0.80,
+      "minMrr": 0.75,
+      "minCitationAccuracy": 0.90,
+      "maxHallucinationRate": 0.08
+    },
+    "VECTOR": {
+      "minRecallAtK": 0.80,
+      "minMrr": 0.75,
+      "minCitationAccuracy": 0.92,
+      "maxHallucinationRate": 0.08
+    }
+  }
+}

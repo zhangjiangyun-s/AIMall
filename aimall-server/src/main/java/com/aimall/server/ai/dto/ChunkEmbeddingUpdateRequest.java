@@ -1,0 +1,3 @@
+package com.aimall.server.ai.dto;
+import jakarta.validation.constraints.*;
+public record ChunkEmbeddingUpdateRequest(@NotBlank @Size(max=64) String executionTaskId,@NotBlank @Size(max=128) String executionToken,@Size(max=255) String embeddingId,@NotBlank @Size(max=255) String embeddingModel,@NotBlank @Size(max=255) String embeddingModelVersion,@NotBlank @Pattern(regexp="PENDING|SYNCING|SYNCED|FAILED|DELETE_PENDING|DELETE_PROCESSING|DELETED|DELETE_DEAD") String embeddingSyncStatus,@NotBlank @Size(max=255) String vectorCollection,@Pattern(regexp="INDEXING|ACTIVE|REVIEW_REQUIRED|DISABLED|SUPERSEDED") String status) {}

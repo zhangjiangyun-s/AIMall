@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "AIMALL_RAG_EVALSET_GOVERNANCE_V1",
+  "evaluationSetVersion": "evalset-v1",
+  "manifestPath": "aimall-ai-service/data/evaluation/evalset-v1-manifest.json",
+  "casePath": "aimall-ai-service/data/evaluation/evalset-v1.jsonl",
+  "caseFileSha256": "735c2bf2039ef919149f0d399f259b3c59c700fc1d233721fe75ff364a50b778",
+  "ownerRole": "Knowledge Quality Owner",
+  "ownerName": "",
+  "reviewerA": "",
+  "reviewerB": "",
+  "adjudicator": "",
+  "requiredCoverage": [
+    "POLICY",
+    "ORDER",
+    "PRODUCT",
+    "RETURN",
+    "EXPIRED_RULE",
+    "CONFLICTING_EVIDENCE",
+    "REFUSAL",
+    "AUTHORIZATION",
+    "PROMPT_INJECTION"
+  ],
+  "releaseSeeds": [25001, 25002, 25003],
+  "runPolicy": "exactly three independent offline runs; release uses the worst metric",
+  "unsupportedAnswerAnnotation": "two independent human labels; disagreement requires adjudicator",
+  "leakageChecks": [
+    "case answer versus retrievable chunk hash",
+    "case answer versus system prompt",
+    "case answer versus training material",
+    "case content inaccessible to runtime model tools"
+  ],
+  "onlineSamplesCanReplaceOfflineGate": false,
+  "productionStatus": "BLOCKED",
+  "blocker": "Named owner/reviewers and a signed leakage audit are missing."
+}

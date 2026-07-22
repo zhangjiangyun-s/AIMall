@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "AIMALL_STAGE23_SIGNOFF_V1",
+  "releaseVersion": "1.0.0",
+  "evidenceManifestSha256": null,
+  "decision": "NO_GO",
+  "roles": [
+    {"role":"QA","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]},
+    {"role":"Security","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]},
+    {"role":"DBA","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]},
+    {"role":"SRE","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]},
+    {"role":"Backend","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]},
+    {"role":"Business","status":"PENDING","approver":null,"approvedAt":null,"evidenceRefs":[]}
+  ]
+}

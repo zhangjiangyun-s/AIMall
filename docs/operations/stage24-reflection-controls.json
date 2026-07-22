@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "AIMALL_STAGE24_REFLECTION_CONTROLS_V1",
+  "source": "AIMALL_ENGINEERING_PRODUCTION_REMEDIATION_PLAN.md section 24",
+  "controls": [
+    {
+      "id": "R24-01",
+      "name": "Transactional outbox closes the post-commit dispatch gap",
+      "owner": "Backend and DBA",
+      "requiredEvidence": [
+        "transactional producers enqueue durable outbox rows",
+        "lease/CAS claim",
+        "retry and dead-letter recovery"
+      ]
+    },
+    {
+      "id": "R24-02",
+      "name": "Client correlation is separated from trusted server identity",
+      "owner": "Backend, AI Platform and Security",
+      "requiredEvidence": [
+        "server-generated traceId",
+        "validated clientTraceId kept only as correlation",
+        "HMAC-authenticated internal identity and tenant policy"
+      ]
+    },
+    {
+      "id": "R24-03",
+      "name": "Tenant policy is explicit across business, cache, vector, event and audit boundaries",
+      "owner": "Backend, AI Platform and Security",
+      "requiredEvidence": [
+        "SINGLE_TENANT is fixed",
+        "non-default tenants fail closed",
+        "outbox and vectors carry the fixed tenant"
+      ]
+    },
+    {
+      "id": "R24-04",
+      "name": "Test success and production readiness are independently gated",
+      "owner": "QA, SRE and Release Manager",
+      "requiredEvidence": [
+        "separate engineering and production counts",
+        "NO_GO while production evidence is incomplete",
+        "non-zero release-blocking exit code"
+      ]
+    }
+  ]
+}

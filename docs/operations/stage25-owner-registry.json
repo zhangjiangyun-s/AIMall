@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "AIMALL_STAGE25_OWNER_REGISTRY_V1",
+  "generatedAt": "2026-07-22T00:00:00+08:00",
+  "entries": [
+    {"id":"PAY-001","ownerRole":"Payment","ownerName":"","backup":"","approver":"","dueDate":"","dependency":"production provider","status":"UNVERIFIED","evidenceRefs":[],"blocker":"Named accountable people are not registered.","updatedAt":""},
+    {"id":"INV-001","ownerRole":"Backend/DBA","ownerName":"","backup":"","approver":"","dueDate":"","dependency":"production-scale MySQL","status":"UNVERIFIED","evidenceRefs":[],"blocker":"Named accountable people are not registered.","updatedAt":""},
+    {"id":"TENANT-001","ownerRole":"Security/Backend","ownerName":"","backup":"","approver":"","dueDate":"","dependency":"SINGLE_TENANT deployment","status":"UNVERIFIED","evidenceRefs":[],"blocker":"Named accountable people are not registered.","updatedAt":""},
+    {"id":"RAG-001","ownerRole":"Knowledge Quality","ownerName":"","backup":"","approver":"","dueDate":"","dependency":"evalset-v1 governance","status":"UNVERIFIED","evidenceRefs":[],"blocker":"Named accountable people are not registered.","updatedAt":""},
+    {"id":"DR-001","ownerRole":"DBA/SRE","ownerName":"","backup":"","approver":"","dueDate":"","dependency":"backup infrastructure","status":"UNVERIFIED","evidenceRefs":[],"blocker":"Named accountable people are not registered.","updatedAt":""}
+  ]
+}

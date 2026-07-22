@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "AIMALL_STAGE22_SECURITY_POLICY_V1",
+  "blockCvssAtOrAbove": 7.0,
+  "maxReportAgeHours": 168,
+  "requiredReports": [
+    {"scannerId": "SAST", "tool": "semgrep", "scope": "aimall-server/src/main,aimall-ai-service/app,aimall-web/src,aimall-admin/src"},
+    {"scannerId": "MAVEN_DEPENDENCY", "tool": "owasp-dependency-check", "scope": "aimall-server/pom.xml"},
+    {"scannerId": "NPM_WEB", "tool": "npm-audit", "scope": "aimall-web/package-lock.json"},
+    {"scannerId": "NPM_ADMIN", "tool": "npm-audit", "scope": "aimall-admin/package-lock.json"},
+    {"scannerId": "PIP_DEPENDENCY", "tool": "pip-audit", "scope": "aimall-ai-service/requirements.txt"},
+    {"scannerId": "CONTAINER", "tool": "trivy-image", "scope": "aimall-server and aimall-ai-service release images"},
+    {"scannerId": "DAST", "tool": "owasp-zap-baseline", "scope": "deployed Java, AI and frontend HTTP surfaces"},
+    {"scannerId": "SECRET", "tool": "gitleaks", "scope": "full Git history and worktree"},
+    {"scannerId": "IAC", "tool": "checkov", "scope": "Dockerfiles, Compose and GitHub workflows"}
+  ],
+  "normalizedReportSchema": {
+    "schemaVersion": "AIMALL_SECURITY_SCAN_V1",
+    "requiredFields": ["scannerId", "tool", "scope", "sourceRevision", "generatedAt", "completed", "findings"]
+  },
+  "exceptionRequiredFields": ["findingId", "scannerId", "owner", "reason", "compensatingMeasures", "expiresAt", "approvedBy"]
+}

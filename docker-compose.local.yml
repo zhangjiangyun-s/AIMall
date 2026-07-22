@@ -1,0 +1,20 @@
+services:
+  mailhog:
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  mysql:
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  aimall-server:
+    environment:
+      AIMALL_ENVIRONMENT: local
+      AIMALL_EMAIL_ENABLED: "true"
+      AIMALL_EMAIL_FROM: ${AIMALL_EMAIL_FROM:-AIMall <no-reply@aimall.local>}
+      AIMALL_EMAIL_CODE_PEPPER: ${AIMALL_EMAIL_CODE_PEPPER:-aimall-local-mailhog-pepper-not-for-production}
+      AIMALL_SMTP_HOST: mailhog
+      AIMALL_SMTP_PORT: 1025
+      AIMALL_SMTP_AUTH: "false"
+      AIMALL_SMTP_STARTTLS: "false"

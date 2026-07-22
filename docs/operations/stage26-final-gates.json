@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "AIMALL_STAGE26_FINAL_GATES_V1",
+  "sourceSection": "AIMALL_ENGINEERING_PRODUCTION_REMEDIATION_PLAN.md#26",
+  "releaseVersion": "1.0.0",
+  "conditions": [
+    {"id":"F26-01","name":"Document encoding and canonical specification","sources":["stage8","stage25:S25-01","stage25:S25-02"]},
+    {"id":"F26-02","name":"Outbox delivery and idempotency","sources":["stage25:S25-03"]},
+    {"id":"F26-03","name":"Shipment predicate and adverse payment cases","sources":["stage25:S25-04"]},
+    {"id":"F26-04","name":"Tenant mode and enforced isolation","sources":["stage24","stage25:S25-05"]},
+    {"id":"F26-05","name":"Capability readiness on approved network boundaries","sources":["stage25:S25-06"]},
+    {"id":"F26-06","name":"Governed RAG evalset and three independent runs","sources":["stage19","stage25:S25-07"]},
+    {"id":"F26-07","name":"Measured backup and recovery RPO/RTO","sources":["stage25:S25-08"]},
+    {"id":"F26-08","name":"Sixty-minute capacity and degradation report","sources":["stage21","stage25:S25-08"]},
+    {"id":"F26-09","name":"Named owners and release approvals","sources":["stage23","stage25:S25-09"]},
+    {"id":"F26-10","name":"Unskipped critical E2E and security tests","sources":["stage22"]}
+  ]
+}

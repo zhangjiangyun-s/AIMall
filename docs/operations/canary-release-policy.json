@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "AIMALL_CANARY_POLICY_V1",
+  "feature": "aimall-release",
+  "state": "CANARY",
+  "tenantAllowlist": [],
+  "userAllowlist": [],
+  "requireTenantAndUserMatch": true,
+  "thresholds": {
+    "paymentDifferenceCount": 0,
+    "inventoryInvalidCount": 0,
+    "tenantLeakageCount": 0,
+    "aiCitationErrorRate": 0,
+    "errorRate": 0.01
+  },
+  "requiredMetricFields": [
+    "paymentDifferenceCount",
+    "inventoryInvalidCount",
+    "tenantLeakageCount",
+    "aiCitationErrorRate",
+    "errorRate"
+  ],
+  "tripBehavior": {
+    "failClosed": true,
+    "automaticReopen": false,
+    "requiresChangeIdToReset": true
+  }
+}

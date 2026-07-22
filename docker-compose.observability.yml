@@ -1,0 +1,44 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    profiles: [observability]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ${AIMALL_OBSERVABILITY_TOKEN_FILE:?AIMALL_OBSERVABILITY_TOKEN_FILE is required}:/run/secrets/observability_token:ro
+      - prometheusdata:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    profiles: [observability]
+    volumes:
+      - ./docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["127.0.0.1:9093:9093"]
+  loki:
+    image: grafana/loki:3.1.0
+    profiles: [observability]
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./docker/observability/loki.yml:/etc/loki/config.yml:ro
+      - lokidata:/loki
+  promtail:
+    image: grafana/promtail:3.1.0
+    profiles: [observability]
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./docker/observability/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  grafana:
+    image: grafana/grafana:11.1.0
+    profiles: [observability]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+    ports: ["127.0.0.1:3000:3000"]
+    volumes:
+      - grafanadata:/var/lib/grafana
+
+volumes:
+  prometheusdata:
+  lokidata:
+  grafanadata:

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "AIMALL_STAGE25_MONEY_MIGRATION_V1",
+  "storageType": "DECIMAL(18,4)",
+  "currency": "CNY",
+  "currencyScale": 2,
+  "currentPhase": "EXPAND_DUAL_WRITE",
+  "legacyColumns": "READ_COMPATIBILITY_ONLY",
+  "engineeringControls": [
+    "money_precision_assessment",
+    "v2 product and SKU price columns",
+    "order/payment/refund snapshot tables",
+    "MoneyPolicy storage and channel rounding",
+    "last allocation absorbs rounding remainder"
+  ],
+  "contractEntryConditions": [
+    "conversionDifferenceCount == 0",
+    "orderPaymentRefundSampleReconciliation == PASSED",
+    "oneFullSettlementCycleObserved == true",
+    "rollbackBackupVerified == true"
+  ],
+  "productionStatus": "BLOCKED",
+  "blocker": "A complete production settlement cycle and zero-difference conversion report are not available."
+}

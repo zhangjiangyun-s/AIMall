@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "AIMALL_EVAL_MANIFEST_V1",
+  "datasetId": "aimall-agent-baseline",
+  "version": "1.2.0",
+  "createdAt": "2026-07-16T00:00:00+08:00",
+  "description": "AIMall Agent 阶段 17 基线评估集，对齐正式商品类目特殊政策证据",
+  "caseFiles": ["baseline-v1.2.0.jsonl"],
+  "expectedCaseCount": 20,
+  "expectedCategoryCounts": {
+    "PRODUCT": 2,
+    "ORDER": 2,
+    "POLICY_RAG": 2,
+    "HYBRID": 2,
+    "MEMORY": 2,
+    "PERMISSION": 2,
+    "GUARDRAIL": 2,
+    "HITL": 2,
+    "TOOL_FAILURE": 2,
+    "REFLECTION": 2
+  }
+}

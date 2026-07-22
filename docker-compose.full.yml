@@ -1,0 +1,378 @@
+name: ${COMPOSE_PROJECT_NAME:-aimall-docker}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: aimall
+      MYSQL_USER: aimall_app
+      MYSQL_PASSWORD: ${AIMALL_DB_APP_PASSWORD:?AIMALL_DB_APP_PASSWORD is required}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --sync-binlog=1
+      - --binlog-expire-logs-seconds=604800
+    ports:
+      - "127.0.0.1:${AIMALL_MYSQL_HOST_PORT:-13306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7.4
+    environment:
+      AIMALL_REDIS_PASSWORD: ${AIMALL_REDIS_PASSWORD:?AIMALL_REDIS_PASSWORD is required}
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${AIMALL_REDIS_PASSWORD:?AIMALL_REDIS_PASSWORD is required}
+    ports:
+      - "127.0.0.1:${AIMALL_REDIS_HOST_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${AIMALL_REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command:
+      - etcd
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --data-dir=/etcd
+    volumes:
+      - etcd_data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:${AIMALL_MINIO_HOST_PORT:-19000}:9000"
+      - "127.0.0.1:${AIMALL_MINIO_CONSOLE_HOST_PORT:-19001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  milvus:
+    image: milvusdb/milvus:v2.6.12
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AIMALL_MILVUS_HOST_PORT:-19531}:19530"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9091/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    logging: *default-logging
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "127.0.0.1:${AIMALL_MAILHOG_SMTP_HOST_PORT:-11025}:1025"
+      - "127.0.0.1:${AIMALL_MAILHOG_WEB_HOST_PORT:-18025}:8025"
+    restart: unless-stopped
+    logging: *default-logging
+
+  aimall-server:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      AIMALL_ENVIRONMENT: ${AIMALL_ENVIRONMENT:-local}
+      AIMALL_DB_URL: jdbc:mysql://mysql:3306/aimall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      AIMALL_DB_USERNAME: aimall_app
+      AIMALL_DB_PASSWORD: ${AIMALL_DB_APP_PASSWORD:?AIMALL_DB_APP_PASSWORD is required}
+      AIMALL_AI_SERVICE_BASE_URL: http://aimall-ai-service:8000
+      AIMALL_TENANT_MODE: SINGLE_TENANT
+      AIMALL_DEFAULT_TENANT_ID: default
+      AIMALL_INTERNAL_API_SECRET: ${AIMALL_INTERNAL_API_SECRET:?AIMALL_INTERNAL_API_SECRET is required}
+      AIMALL_JAVA_TO_AI_KEY_ID: ${AIMALL_JAVA_TO_AI_KEY_ID:?AIMALL_JAVA_TO_AI_KEY_ID is required}
+      AIMALL_JAVA_TO_AI_SECRET: ${AIMALL_JAVA_TO_AI_SECRET:?AIMALL_JAVA_TO_AI_SECRET is required}
+      AIMALL_AI_TO_JAVA_KEY_ID: ${AIMALL_AI_TO_JAVA_KEY_ID:?AIMALL_AI_TO_JAVA_KEY_ID is required}
+      AIMALL_AI_TO_JAVA_SECRET: ${AIMALL_AI_TO_JAVA_SECRET:?AIMALL_AI_TO_JAVA_SECRET is required}
+      AIMALL_OBSERVABILITY_TOKEN: ${AIMALL_OBSERVABILITY_TOKEN:?AIMALL_OBSERVABILITY_TOKEN is required}
+      AIMALL_ADMIN_BOOTSTRAP_USERNAME: ${AIMALL_ADMIN_BOOTSTRAP_USERNAME:-testadmin}
+      AIMALL_ADMIN_BOOTSTRAP_PASSWORD: ${AIMALL_ADMIN_BOOTSTRAP_PASSWORD:?AIMALL_ADMIN_BOOTSTRAP_PASSWORD is required}
+      AIMALL_ADMIN_RESET_DEFAULT_PASSWORD: ${AIMALL_ADMIN_RESET_DEFAULT_PASSWORD:-false}
+      AIMALL_TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+      AIMALL_ALLOWED_ORIGINS: http://localhost:${AIMALL_WEB_HOST_PORT:-15173},http://localhost:${AIMALL_ADMIN_HOST_PORT:-15174}
+      AIMALL_API_DOCS_ENABLED: "false"
+      AIMALL_UPLOAD_ANTIVIRUS_ENABLED: "false"
+      AIMALL_UPLOAD_ANTIVIRUS_REQUIRED: "false"
+      AIMALL_EMAIL_ENABLED: "true"
+      AIMALL_EMAIL_FROM: AIMall <no-reply@aimall.local>
+      AIMALL_EMAIL_CODE_PEPPER: ${AIMALL_EMAIL_CODE_PEPPER:?AIMALL_EMAIL_CODE_PEPPER is required}
+      AIMALL_SMTP_HOST: mailhog
+      AIMALL_SMTP_PORT: "1025"
+      AIMALL_SMTP_AUTH: "false"
+      AIMALL_SMTP_STARTTLS: "false"
+      AIMALL_PAYMENT_SIMULATION_ENABLED: "false"
+      AIMALL_PAYMENT_PROVIDER: ${AIMALL_PAYMENT_PROVIDER:-ALIPAY_SANDBOX}
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED:-true}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID:-}
+      ALIPAY_SELLER_ID: ${ALIPAY_SELLER_ID:-}
+      ALIPAY_PRIVATE_KEY_FILE: /run/secrets/alipay-sandbox/alipay-sandbox-app-private-key.pem
+      ALIPAY_PUBLIC_KEY_FILE: /run/secrets/alipay-sandbox/alipay-sandbox-alipay-public-key.pem
+      ALIPAY_GATEWAY_URL: ${ALIPAY_GATEWAY_URL:-https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+      ALIPAY_NOTIFY_BASE_URL: ${ALIPAY_NOTIFY_BASE_URL:-}
+      ALIPAY_RETURN_URL: ${ALIPAY_RETURN_URL:-http://localhost:15173/orders}
+      ALIPAY_SIGN_TYPE: RSA2
+      ALIPAY_CHARSET: UTF-8
+      ALIPAY_FORMAT: json
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${AIMALL_SERVER_HOST_PORT:-18080}:8080"
+    volumes:
+      - shared_storage:/app/storage
+      - ./secrets/alipay-sandbox:/run/secrets/alipay-sandbox:ro
+    restart: unless-stopped
+    logging: *default-logging
+
+  aimall-ai-service:
+    build:
+      context: .
+      dockerfile: docker/ai-service/Dockerfile
+    environment:
+      AIMALL_SERVER_BASE_URL: http://aimall-server:8080
+      AIMALL_ENVIRONMENT: ${AIMALL_ENVIRONMENT:-local}
+      AIMALL_TENANT_MODE: SINGLE_TENANT
+      AIMALL_DEFAULT_TENANT_ID: default
+      AIMALL_INTERNAL_API_SECRET: ${AIMALL_INTERNAL_API_SECRET:?AIMALL_INTERNAL_API_SECRET is required}
+      AIMALL_JAVA_TO_AI_KEY_ID: ${AIMALL_JAVA_TO_AI_KEY_ID:?AIMALL_JAVA_TO_AI_KEY_ID is required}
+      AIMALL_JAVA_TO_AI_SECRET: ${AIMALL_JAVA_TO_AI_SECRET:?AIMALL_JAVA_TO_AI_SECRET is required}
+      AIMALL_AI_TO_JAVA_KEY_ID: ${AIMALL_AI_TO_JAVA_KEY_ID:?AIMALL_AI_TO_JAVA_KEY_ID is required}
+      AIMALL_AI_TO_JAVA_SECRET: ${AIMALL_AI_TO_JAVA_SECRET:?AIMALL_AI_TO_JAVA_SECRET is required}
+      AIMALL_OBSERVABILITY_TOKEN: ${AIMALL_OBSERVABILITY_TOKEN:?AIMALL_OBSERVABILITY_TOKEN is required}
+      AI_RUNTIME_MODE: LLM
+      AI_RUNTIME_MODE_PREVIOUS: LLM
+      AI_RUNTIME_MODE_ROLLOUT_PERCENT: "100"
+      AIMALL_INSTANCE_KEY: docker-ai-1
+      STATE_BACKEND: redis
+      REDIS_URL: redis://:${AIMALL_REDIS_PASSWORD:?AIMALL_REDIS_PASSWORD is required}@redis:6379/0
+      REDIS_MAX_CONNECTIONS: "100"
+      RAG_ENABLED: "true"
+      RAG_RETRIEVAL_MODE: HYBRID
+      MILVUS_URI: http://milvus:19530
+      MILVUS_COLLECTION: ${MILVUS_COLLECTION:-aimall_knowledge_chunks_docker}
+      EMBEDDING_PROVIDER: ark
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:?EMBEDDING_MODEL is required}
+      EMBEDDING_MODEL_VERSION: ${EMBEDDING_MODEL_VERSION:?EMBEDDING_MODEL_VERSION is required}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-2048}
+      ARK_API_KEY: ${ARK_API_KEY:?ARK_API_KEY is required}
+      ARK_EMBEDDING_URL: ${ARK_EMBEDDING_URL:?ARK_EMBEDDING_URL is required}
+      AGNES_API_KEY: ${AGNES_API_KEY:?AGNES_API_KEY is required}
+      AGNES_BASE_URL: ${AGNES_BASE_URL:-https://apihub.agnes-ai.com/v1}
+      AGNES_MODEL: ${AGNES_MODEL:-agnes-2.0-flash}
+      MODEL_ROUTING_ENABLED: "true"
+      AGNES_FAST_MODEL: ${AGNES_FAST_MODEL:-agnes-1.5-flash}
+      AGNES_PRIMARY_MODEL: ${AGNES_PRIMARY_MODEL:-agnes-2.0-flash}
+      AGNES_FALLBACK_MODEL: ${AGNES_FALLBACK_MODEL:-agnes-1.5-flash}
+      MULTI_AGENT_ENABLED: "true"
+      LLM_TIMEOUT: "180"
+      SSE_MAX_GLOBAL_CONNECTIONS: "64"
+      SSE_MAX_CONNECTIONS_PER_CLIENT: "4"
+      SSE_MAX_DURATION_SECONDS: "180"
+    depends_on:
+      redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      aimall-server:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AIMALL_AI_HOST_PORT:-18000}:8000"
+    volumes:
+      - shared_storage:/app/storage
+      - ai_logs:/app/logs
+    restart: unless-stopped
+    logging: *default-logging
+
+  aimall-web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    depends_on:
+      aimall-server:
+        condition: service_healthy
+    ports:
+      - "${AIMALL_WEB_HOST_PORT:-15173}:5173"
+    restart: unless-stopped
+    logging: *default-logging
+
+  aimall-admin:
+    build:
+      context: .
+      dockerfile: docker/admin/Dockerfile
+    depends_on:
+      aimall-server:
+        condition: service_healthy
+    ports:
+      - "${AIMALL_ADMIN_HOST_PORT:-15174}:5174"
+    restart: unless-stopped
+    logging: *default-logging
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.2.1
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-}"]
+    depends_on:
+      aimall-web:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  prometheus:
+    image: ${DOCKER_HUB_MIRROR_PREFIX:-}prom/prometheus:v2.53.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    depends_on:
+      aimall-server:
+        condition: service_healthy
+      aimall-ai-service:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${AIMALL_PROMETHEUS_HOST_PORT:-19090}:9090"
+    volumes:
+      - ./docker/observability/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./.docker-secrets/observability-token.txt:/run/secrets/observability_token:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    logging: *default-logging
+
+  alertmanager:
+    image: ${DOCKER_HUB_MIRROR_PREFIX:-}prom/alertmanager:v0.27.0
+    volumes:
+      - ./docker/observability/alertmanager-docker.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:${AIMALL_ALERTMANAGER_HOST_PORT:-19093}:9093"
+    restart: unless-stopped
+    logging: *default-logging
+
+  loki:
+    image: ${DOCKER_HUB_MIRROR_PREFIX:-}grafana/loki:3.5.5
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./docker/observability/loki.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+    logging: *default-logging
+
+  promtail:
+    image: ${DOCKER_HUB_MIRROR_PREFIX:-}grafana/promtail:3.5.5
+    command: ["-config.file=/etc/promtail/config.yml"]
+    depends_on:
+      loki:
+        condition: service_started
+    volumes:
+      - ./docker/observability/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_positions:/tmp
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    image: ${DOCKER_HUB_MIRROR_PREFIX:-}grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${AIMALL_GRAFANA_HOST_PORT:-13000}:3000"
+    volumes:
+      - ./docker/observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/aimall.yml:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  mysql_data:
+  redis_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  shared_storage:
+  ai_logs:
+  prometheus_data:
+  alertmanager_data:
+  loki_data:
+  promtail_positions:
+  grafana_data:

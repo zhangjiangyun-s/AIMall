@@ -1,0 +1,21 @@
+{
+  "providerMode": "CONTROLLED_STUB",
+  "events": [
+    {
+      "sequence": 2,
+      "delayMs": 50,
+      "repeat": 1,
+      "path": "/api/logistics/callback",
+      "body": {"trackingNo": "STAGE22-001", "status": "DELIVERED"},
+      "expectedStatuses": [200]
+    },
+    {
+      "sequence": 1,
+      "delayMs": 10,
+      "repeat": 2,
+      "path": "/api/logistics/callback",
+      "body": {"trackingNo": "STAGE22-001", "status": "SHIPPED"},
+      "expectedStatuses": [200]
+    }
+  ]
+}

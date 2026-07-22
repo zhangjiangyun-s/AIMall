@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS late_payment_case (
+  id bigint NOT NULL AUTO_INCREMENT,
+  payment_id bigint NOT NULL,
+  order_id bigint NOT NULL,
+  order_sn varchar(64) NOT NULL,
+  amount decimal(18,4) NOT NULL,
+  provider_trade_no varchar(128) NOT NULL,
+  refund_request_id varchar(64) NOT NULL,
+  refund_trade_no varchar(128) DEFAULT NULL,
+  status varchar(32) NOT NULL DEFAULT 'PENDING',
+  retry_count int NOT NULL DEFAULT 0,
+  query_retry_count int NOT NULL DEFAULT 0,
+  last_error varchar(1000) DEFAULT NULL,
+  create_time datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  update_time datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  finished_time datetime(6) DEFAULT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_late_payment_payment (payment_id),
+  UNIQUE KEY uk_late_payment_refund_request (refund_request_id),
+  KEY idx_late_payment_status (status, update_time),
+  KEY idx_late_payment_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

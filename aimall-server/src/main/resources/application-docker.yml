@@ -1,0 +1,17 @@
+# Docker 环境专用配置（通过 --spring.profiles.active=docker 激活）
+# 覆盖 application.yml 中的数据库和 AI 服务地址
+
+spring:
+  datasource:
+    url: ${AIMALL_DB_URL:jdbc:mysql://mysql:3306/aimall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${AIMALL_DB_USERNAME:aimall_app}
+    password: ${AIMALL_DB_PASSWORD:}
+  sql:
+    init:
+      mode: ${AIMALL_SQL_INIT_MODE:never}
+      continue-on-error: false
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+ai-service:
+  base-url: ${AIMALL_AI_SERVICE_BASE_URL:http://aimall-ai-service:8000}

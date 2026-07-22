@@ -1,0 +1,7 @@
+spring:
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql

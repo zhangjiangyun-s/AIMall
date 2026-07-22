@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "AIMALL_STAGE22_E2E_CATALOG_V1",
+  "requiredAssertionGroups": ["business", "database", "event"],
+  "providerPolicy": {
+    "allowed": ["ALIPAY_SANDBOX", "CONTROLLED_STUB", "REAL_MYSQL", "REAL_REDIS", "REAL_MILVUS"],
+    "forbidden": ["SIMULATE", "FIXED_SUCCESS"]
+  },
+  "cases": [
+    {
+      "id": "E2E-01", "name": "Registration, login, rate limit and other-device logout",
+      "tags": ["registration", "login", "rate-limit", "device"], "providerMode": "CONTROLLED_STUB",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/AccountSecurityServiceTest.java", "aimall-web/e2e/stage10-commerce-flow.spec.ts"],
+      "assertions": {
+        "business": ["Registration verifies email and login returns a token; rate limit rejects excess attempts; other-device logout invalidates old token."],
+        "database": ["Member, login history and device records match the final authentication state."],
+        "event": ["Security/login audit records contain success, failure, rate-limit and device-revoke events without secrets."]
+      }
+    },
+    {
+      "id": "E2E-02", "name": "Product SKU reservation and concurrent last item",
+      "tags": ["product", "sku", "inventory", "concurrency"], "providerMode": "REAL_MYSQL",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/integration/MySqlConcurrencyIntegrationTest.java"],
+      "assertions": {
+        "business": ["Exactly one of the concurrent buyers can reserve the final SKU."],
+        "database": ["SPU/SKU stock and lock_stock preserve stock >= lock_stock >= 0."],
+        "event": ["Exactly one inventory reservation ledger/outbox fact is committed for the winning request."]
+      }
+    },
+    {
+      "id": "E2E-03", "name": "Order discount and payment state matrix",
+      "tags": ["order", "coupon", "payment", "processing", "unknown", "success", "failure"], "providerMode": "ALIPAY_SANDBOX",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/CouponServiceImplTest.java", "aimall-server/src/test/java/com/aimall/server/service/impl/PayServiceImplTest.java"],
+      "assertions": {
+        "business": ["Order uses actual coupon discount and exposes PROCESSING/UNKNOWN/PAID/FAILED without inventing success."],
+        "database": ["Order, coupon actual_discount_amount and payment record agree with the sandbox provider result."],
+        "event": ["Verified callback evidence and payment Outbox facts are durable and idempotent."]
+      }
+    },
+    {
+      "id": "E2E-04", "name": "Close order and late payment race",
+      "tags": ["close", "late-payment", "race"], "providerMode": "ALIPAY_SANDBOX",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/OrderTimeoutCloserTest.java", "aimall-server/src/test/java/com/aimall/server/service/impl/LatePaymentProcessorTest.java"],
+      "assertions": {
+        "business": ["Close and late sandbox payment converge to a documented manual/auto-refund outcome."],
+        "database": ["Order terminal state, payment state and late_payment_case are mutually consistent."],
+        "event": ["Close, late callback and compensation events retain ordering and idempotency keys."]
+      }
+    },
+    {
+      "id": "E2E-05", "name": "Full and partial shipment, delivery and auto receive",
+      "tags": ["shipment", "partial-shipment", "delivery", "auto-receive"], "providerMode": "CONTROLLED_STUB",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/LogisticsServiceImplTest.java", "aimall-server/src/test/java/com/aimall/server/service/impl/LogisticsAutoReceiveJobTest.java"],
+      "assertions": {
+        "business": ["Only fulfillable quantity ships; auto receive occurs only after all non-refunded quantity is delivered."],
+        "database": ["Shipment items, order items and order status preserve fulfillment/refund quantity invariants."],
+        "event": ["Duplicate/out-of-order logistics callbacks produce one ordered logistics audit timeline."]
+      }
+    },
+    {
+      "id": "E2E-06", "name": "Partial after-sale, refund unknown and manual review",
+      "tags": ["return", "partial-refund", "refund-unknown", "manual-review"], "providerMode": "ALIPAY_SANDBOX",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/ReturnApplyServiceImplTest.java", "aimall-server/src/test/java/com/aimall/server/service/impl/RefundTaskProcessorTest.java"],
+      "assertions": {
+        "business": ["Partial refund absorbs final rounding tail and UNKNOWN remains unresolved until query/review."],
+        "database": ["Return quantities, refund record, order item refunded amount and inventory restoration agree."],
+        "event": ["Refund request, provider query, retry/manual decision and inventory ledger are auditable."]
+      }
+    },
+    {
+      "id": "E2E-07", "name": "Duplicate payment, refund and logistics callbacks",
+      "tags": ["duplicate", "payment-callback", "refund-request", "logistics-callback"], "providerMode": "CONTROLLED_STUB",
+      "automation": ["aimall-server/src/test/java/com/aimall/server/service/impl/PayServiceImplTest.java", "aimall-server/src/test/java/com/aimall/server/service/impl/ReturnApplyServiceImplTest.java"],
+      "assertions": {
+        "business": ["Duplicate callbacks and request IDs return the original outcome without repeating side effects."],
+        "database": ["Unique keys and CAS transitions leave one payment/refund/logistics fact."],
+        "event": ["Duplicates are retained as evidence or deduplicated with an auditable reason; no duplicate ledger delta occurs."]
+      }
+    },
+    {
+      "id": "E2E-08", "name": "Cross-tenant order, Action, RAG, cache and audit isolation",
+      "tags": ["tenant", "order", "action", "rag", "cache", "audit"], "providerMode": "REAL_REDIS",
+      "automation": ["aimall-ai-service/tests/test_stage16_tenant_and_health.py", "aimall-ai-service/tests/test_phase12_session_memory.py"],
+      "assertions": {
+        "business": ["Tenant A receives not-found/forbidden for every Tenant B resource and no existence oracle."],
+        "database": ["Tenant predicates prevent cross-tenant order, Action and audit rows from being returned or mutated."],
+        "event": ["Denied accesses are security-audited under trusted token-derived tenant/user identity without leaking payloads."]
+      }
+    },
+    {
+      "id": "E2E-09", "name": "Web and API abuse controls",
+      "tags": ["csrf", "xss", "sql-injection", "authorization", "replay", "upload", "load"], "providerMode": "CONTROLLED_STUB",
+      "automation": ["scripts/stage7-security-gate.ps1", "aimall-server/src/test/java/com/aimall/server/config/InternalServiceAuthInterceptorTest.java", "aimall-server/src/test/java/com/aimall/server/security/UploadSecurityScannerTest.java"],
+      "assertions": {
+        "business": ["CSRF/XSS/SQLi/unauthorized/replay/oversized upload attempts are rejected with stable public errors."],
+        "database": ["Rejected requests create no unauthorized business mutation and nonce/upload limits remain consistent."],
+        "event": ["Security audit records sanitized actor, source, rule and trace without secrets or malicious raw content."]
+      }
+    },
+    {
+      "id": "E2E-10", "name": "MySQL, Redis, LLM and Milvus outage recovery",
+      "tags": ["mysql", "redis", "llm", "milvus", "recovery", "takeover"], "providerMode": "REAL_MILVUS",
+      "automation": ["aimall-ai-service/app/evaluation/fault_harness.py", "scripts/stage20-encrypted-backup-restore-drill.ps1", "aimall-ai-service/tests/test_stage6_real_redis.py", "aimall-ai-service/tests/test_stage6_real_milvus.py"],
+      "assertions": {
+        "business": ["Reads degrade explicitly, writes fail closed and service recovers without fabricated success."],
+        "database": ["Recovery preserves orders, payments, refunds, inventory, Actions and knowledge versions."],
+        "event": ["Lease takeover/fencing produces one final execution and outage/recovery alerts plus audit are present."]
+      }
+    }
+  ]
+}

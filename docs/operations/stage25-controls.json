@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "AIMALL_STAGE25_V12_CONTROLS_V1",
+  "sourceSection": "AIMALL_ENGINEERING_PRODUCTION_REMEDIATION_PLAN.md#25",
+  "controls": [
+    {"id":"S25-01","section":"25.1","name":"Precise money contract","ownerRole":"Backend/DBA","requiredEvidence":["MoneyPolicy","DECIMAL(18,4) migration","dual-write contract"]},
+    {"id":"S25-02","section":"25.2","name":"AI runtime mode state machine","ownerRole":"AI Platform","requiredEvidence":["five-mode enum","startup-fixed mode","production fail-closed validator"]},
+    {"id":"S25-03","section":"25.3","name":"Transactional Outbox consumer protocol","ownerRole":"Backend/SRE","requiredEvidence":["transactional SKIP LOCKED claim","lease heartbeat","canonical states","dead-letter evidence"]},
+    {"id":"S25-04","section":"25.4","name":"Central shipment eligibility predicate","ownerRole":"Order/Payment","requiredEvidence":["single predicate","payment and refund checks","atomic item quantity check","idempotency key"]},
+    {"id":"S25-05","section":"25.5","name":"Tenant boundary enforcement","ownerRole":"Security/Backend","requiredEvidence":["single-tenant fail-closed","tenant propagation","vector tenant filter"]},
+    {"id":"S25-06","section":"25.6","name":"Capability-scoped health and degradation","ownerRole":"SRE/Security","requiredEvidence":["public liveness only","protected readiness endpoints","capability-scoped response"]},
+    {"id":"S25-07","section":"25.7","name":"RAG evaluation-set governance","ownerRole":"Knowledge Quality","requiredEvidence":["immutable evalset hash","required risk coverage","three fixed seeds","human annotation protocol"]},
+    {"id":"S25-08","section":"25.8","name":"Verifiable migration recovery and capacity controls","ownerRole":"DBA/SRE","requiredEvidence":["migration governance","recovery runbook","60-minute capacity gate","canary rollback policy"]},
+    {"id":"S25-09","section":"25.9","name":"Named production owner registry","ownerRole":"Program Owner","requiredEvidence":["required registry entries","owner/backup/approver fields","evidence and blocker fields"]}
+  ]
+}

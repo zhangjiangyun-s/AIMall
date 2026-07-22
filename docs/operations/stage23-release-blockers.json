@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "AIMALL_STAGE23_BLOCKER_LEDGER_V1",
+  "releaseVersion": "1.0.0",
+  "generatedAt": "2026-07-21T21:50:00+08:00",
+  "featureFreeze": {"status":"REQUESTED_NOT_CONFIRMED","owner":"Release Manager","targetDate":"2026-07-24"},
+  "blockers": [
+    {"id":"B23-001","gate":"GATE-0","severity":"P1","status":"OPEN","owner":"Backend and Release Manager","targetDate":"2026-07-24","summary":"Feature freeze is unconfirmed and the authenticated version-aligned OpenAPI snapshot is missing.","requiredEvidence":"Approved non-essential feature freeze plus immutable OpenAPI 1.0.0 artifact and hash."},
+    {"id":"B23-002","gate":"GATE-1","severity":"P1","status":"OPEN","owner":"Security","targetDate":"2026-07-28","summary":"Production TLS, antivirus and complete security scanner evidence are missing.","requiredEvidence":"TLS/AV deployment plus nine same-revision security reports."},
+    {"id":"B23-003","gate":"GATE-2","severity":"P0","status":"OPEN","owner":"Payment and Business","targetDate":"2026-07-29","summary":"Production payment/refund funds flow and reconciliation are not proven.","requiredEvidence":"Signed provider drill, query/refund/close and zero-difference reconciliation."},
+    {"id":"B23-004","gate":"GATE-3","severity":"P0","status":"OPEN","owner":"Backend and Security","targetDate":"2026-07-29","summary":"Cross-tenant isolation is not proven on production-equivalent topology.","requiredEvidence":"Order, Action, RAG, cache and audit isolation run with independent leakage synthetic."},
+    {"id":"B23-005","gate":"GATE-4","severity":"P0","status":"OPEN","owner":"DBA and SRE","targetDate":"2026-07-30","summary":"Production PITR, offsite backup, Redis restore and Milvus rebuild are not proven.","requiredEvidence":"Measured RPO/RTO drill on separate production-sized infrastructure."},
+    {"id":"B23-006","gate":"GATE-5","severity":"P1","status":"OPEN","owner":"SRE","targetDate":"2026-07-31","summary":"Production-equivalent capacity, canary and rollback drill are missing.","requiredEvidence":"Complete load matrix, pool/lock metrics, trip and on-call rollback evidence."},
+    {"id":"B23-007","gate":"GATE-6","severity":"P1","status":"OPEN","owner":"QA and Security","targetDate":"2026-07-31","summary":"Three-group E2E is 0/10 and complete security reports are 0/9.","requiredEvidence":"All Stage 22 E2E and normalized security gates pass."},
+    {"id":"B23-008","gate":"GATE-6","severity":"P1","status":"OPEN","owner":"SRE","targetDate":"2026-07-28","summary":"External alert delivery, acknowledgement, roster and retention evidence are missing.","requiredEvidence":"Provider delivery ID, operator acknowledgement and approved on-call roster."},
+    {"id":"B23-009","gate":"GATE-6","severity":"P0","status":"OPEN","owner":"Release Manager","targetDate":"2026-08-01","summary":"Required production signatures are pending.","requiredEvidence":"QA, Security, DBA, SRE, Backend and Business approve one evidence manifest."}
+  ]
+}

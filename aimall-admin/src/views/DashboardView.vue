@@ -32,7 +32,7 @@
       <el-col :span="8">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-value">{{ stats.docCount }}</div>
-          <div class="stat-label">规则文档</div>
+          <div class="stat-label">知识文档</div>
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { ElCard, ElCol, ElMessage, ElRow } from 'element-plus'
 import http from '../api/http'
 import type { ApiResponse } from '../api/productAdminApi'
 
@@ -70,10 +71,10 @@ interface IntegrationHealthData {
   modules: ModuleMap
 }
 
-const mockStats: DashboardStats = {
-  productCount: 3,
-  docCount: 2,
-  pendingOrderCount: 1
+const emptyStats: DashboardStats = {
+  productCount: 0,
+  docCount: 0,
+  pendingOrderCount: 0
 }
 
 const defaultModules: ModuleMap = {
@@ -84,7 +85,7 @@ const defaultModules: ModuleMap = {
   database: false
 }
 
-const stats = ref<DashboardStats>({ ...mockStats })
+const stats = ref<DashboardStats>({ ...emptyStats })
 const healthStatus = ref('检查中...')
 const serviceName = ref('aimall-server')
 const moduleStatus = ref<ModuleMap>({ ...defaultModules })
@@ -101,8 +102,9 @@ async function loadDashboard() {
   try {
     const response = await http.get<ApiResponse<DashboardStats>>('/api/admin/dashboard')
     stats.value = response.data.data
-  } catch {
-    stats.value = { ...mockStats }
+  } catch (error) {
+    stats.value = { ...emptyStats }
+    ElMessage.error(error instanceof Error ? error.message : '工作台数据加载失败')
   }
 }
 

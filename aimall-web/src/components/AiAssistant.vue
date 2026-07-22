@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { nextTick, ref } from "vue";
 import { useRoute } from "vue-router";
-import { sendAiMessage, type PageType } from "../api/aiApi";
+import { sendAiMessageStream, type PageType } from "../api/aiApi";
+
+type ChatMessage = { role: "user" | "ai"; text: string };
 
 const route = useRoute();
 const open = ref(false);
-const messages = ref<{ role: "user" | "ai"; text: string }[]>([]);
+const messages = ref<ChatMessage[]>([]);
+const messagesEl = ref<HTMLElement | null>(null);
 const input = ref("");
 const sending = ref(false);
 
@@ -24,29 +27,40 @@ function buildPageContext() {
   return { pageType: "GENERAL" as PageType };
 }
 
+async function scrollToBottom() {
+  await nextTick();
+  if (messagesEl.value) {
+    messagesEl.value.scrollTop = messagesEl.value.scrollHeight;
+  }
+}
+
 async function send() {
   const text = input.value.trim();
   if (!text || sending.value) return;
 
   input.value = "";
   messages.value.push({ role: "user", text });
+  const aiMessageIndex = messages.value.push({ role: "ai", text: "" }) - 1;
   sending.value = true;
+  await scrollToBottom();
 
   try {
-    const res = await sendAiMessage({
-      message: text,
-      sessionId: "ai_session_mock",
-      pageContext: buildPageContext(),
-    });
-    messages.value.push({ role: "ai", text: res.data.answer });
+    await sendAiMessageStream(
+      {
+        message: text,
+        sessionId: "ai_session_mock",
+        pageContext: buildPageContext(),
+      },
+      async (chunk) => {
+        messages.value[aiMessageIndex].text += chunk;
+        await scrollToBottom();
+      }
+    );
   } catch {
-    // mock fallback when backend is unavailable
-    messages.value.push({
-      role: "ai",
-      text: `收到消息："${text}"。当前页面：${buildPageContext().pageType}。AI 服务暂未接入。`,
-    });
+    messages.value[aiMessageIndex].text = `收到消息：“${text}”。当前 AI 服务暂时不可用，请稍后再试。`;
   } finally {
     sending.value = false;
+    await scrollToBottom();
   }
 }
 </script>
@@ -61,16 +75,19 @@ async function send() {
         <button class="ai-close" @click="toggle">&times;</button>
       </div>
 
-      <div class="ai-messages">
+      <div ref="messagesEl" class="ai-messages">
         <div
           v-for="(msg, i) in messages"
           :key="i"
           :class="['ai-msg', msg.role]"
         >
-          <div class="ai-bubble">{{ msg.text }}</div>
+          <div class="ai-bubble">
+            <span v-if="msg.text">{{ msg.text }}</span>
+            <span v-else class="typing-dot">正在思考...</span>
+          </div>
         </div>
         <div v-if="messages.length === 0" class="ai-empty">
-          你好！有什么可以帮助你的？
+          你好，有什么可以帮你？
         </div>
       </div>
 
@@ -164,6 +181,7 @@ async function send() {
   font-size: 14px;
   line-height: 1.5;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .ai-msg.user .ai-bubble {
@@ -176,6 +194,10 @@ async function send() {
   background: #f0f2f5;
   color: #333;
   text-align: left;
+}
+
+.typing-dot {
+  color: #909399;
 }
 
 .ai-empty {

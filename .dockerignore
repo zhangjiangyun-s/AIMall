@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+**/node_modules
+**/dist
+**/target
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/logs
+**/storage
+**/.idea
+**/.vscode
+*.log

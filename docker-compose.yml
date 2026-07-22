@@ -1,0 +1,204 @@
+# =============================================
+# AIMall Docker Compose 一键启动
+# =============================================
+# 使用方法：
+#   生产基础: docker compose up -d
+#   本地调试: docker compose --profile local -f docker-compose.yml -f docker-compose.local.yml up -d
+#   docker compose logs -f aimall-server  # 查看后端日志
+#   docker compose down -v             # 停止并删除数据卷
+# =============================================
+# 启动后访问：
+#   用户端: http://localhost:5173
+#   管理端: http://localhost:5174
+#   后端API由用户端和管理端 Nginx 私网代理，不直接发布宿主机端口
+#   管理员账号由 AIMALL_ADMIN_BOOTSTRAP_* 环境变量显式初始化
+# =============================================
+
+services:
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: aimall-mailhog
+    profiles: ["local"]
+    expose:
+      - "1025"
+      - "8025"
+    restart: unless-stopped
+
+  # ---------- MySQL 8.0 ----------
+  mysql:
+    image: mysql:8.0
+    container_name: aimall-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: aimall
+      MYSQL_USER: aimall_app
+      MYSQL_PASSWORD: ${AIMALL_DB_APP_PASSWORD:?AIMALL_DB_APP_PASSWORD is required}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --sync-binlog=1
+      - --binlog-expire-logs-seconds=604800
+    volumes:
+      - mysqldata2:/var/lib/mysql          # 数据持久化
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    expose:
+      - "3306"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: aimall-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --save
+      - "300 10"
+      - --save
+      - "60 10000"
+      - --requirepass
+      - ${AIMALL_INTERNAL_API_SECRET:?AIMALL_INTERNAL_API_SECRET is required}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '${AIMALL_INTERNAL_API_SECRET}' ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    expose:
+      - "6379"
+    restart: unless-stopped
+
+  # ---------- Spring Boot 业务后端 ----------
+  aimall-server:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    container_name: aimall-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      AIMALL_ENVIRONMENT: ${AIMALL_ENVIRONMENT:-prod}
+      AIMALL_TENANT_MODE: ${AIMALL_TENANT_MODE:-SINGLE_TENANT}
+      AIMALL_DEFAULT_TENANT_ID: ${AIMALL_DEFAULT_TENANT_ID:-default}
+      AIMALL_AI_SERVICE_BASE_URL: ${AIMALL_AI_SERVICE_BASE_URL:-http://aimall-ai-service:8000}
+      AIMALL_DB_USERNAME: ${AIMALL_DB_USERNAME:-aimall_app}
+      AIMALL_DB_PASSWORD: ${AIMALL_DB_PASSWORD:?AIMALL_DB_PASSWORD is required}
+      AIMALL_INTERNAL_API_SECRET: ${AIMALL_INTERNAL_API_SECRET:?AIMALL_INTERNAL_API_SECRET is required}
+      AIMALL_JAVA_TO_AI_KEY_ID: ${AIMALL_JAVA_TO_AI_KEY_ID:-legacy}
+      AIMALL_JAVA_TO_AI_SECRET: ${AIMALL_JAVA_TO_AI_SECRET:-${AIMALL_INTERNAL_API_SECRET}}
+      AIMALL_JAVA_TO_AI_PREVIOUS_KEY_ID: ${AIMALL_JAVA_TO_AI_PREVIOUS_KEY_ID:-}
+      AIMALL_JAVA_TO_AI_PREVIOUS_SECRET: ${AIMALL_JAVA_TO_AI_PREVIOUS_SECRET:-}
+      AIMALL_AI_TO_JAVA_KEY_ID: ${AIMALL_AI_TO_JAVA_KEY_ID:-legacy}
+      AIMALL_AI_TO_JAVA_SECRET: ${AIMALL_AI_TO_JAVA_SECRET:-${AIMALL_INTERNAL_API_SECRET}}
+      AIMALL_AI_TO_JAVA_PREVIOUS_KEY_ID: ${AIMALL_AI_TO_JAVA_PREVIOUS_KEY_ID:-}
+      AIMALL_AI_TO_JAVA_PREVIOUS_SECRET: ${AIMALL_AI_TO_JAVA_PREVIOUS_SECRET:-}
+      AIMALL_UPLOAD_ANTIVIRUS_ENABLED: ${AIMALL_UPLOAD_ANTIVIRUS_ENABLED:-false}
+      AIMALL_UPLOAD_ANTIVIRUS_REQUIRED: ${AIMALL_UPLOAD_ANTIVIRUS_REQUIRED:-false}
+      AIMALL_UPLOAD_ANTIVIRUS_HOST: ${AIMALL_UPLOAD_ANTIVIRUS_HOST:-host.docker.internal}
+      AIMALL_UPLOAD_ANTIVIRUS_PORT: ${AIMALL_UPLOAD_ANTIVIRUS_PORT:-3310}
+      AIMALL_ADMIN_BOOTSTRAP_USERNAME: ${AIMALL_ADMIN_BOOTSTRAP_USERNAME:-admin}
+      AIMALL_ADMIN_BOOTSTRAP_PASSWORD: ${AIMALL_ADMIN_BOOTSTRAP_PASSWORD:-}
+      AIMALL_ADMIN_RESET_DEFAULT_PASSWORD: ${AIMALL_ADMIN_RESET_DEFAULT_PASSWORD:-false}
+      AIMALL_TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+      AIMALL_ALLOWED_ORIGINS: ${AIMALL_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
+      AIMALL_API_DOCS_ENABLED: ${AIMALL_API_DOCS_ENABLED:-false}
+      AIMALL_PAYMENT_SIMULATION_ENABLED: ${AIMALL_PAYMENT_SIMULATION_ENABLED:-false}
+      AIMALL_PAYMENT_PROVIDER: ${AIMALL_PAYMENT_PROVIDER:?AIMALL_PAYMENT_PROVIDER is required}
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED:-false}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID:-}
+      ALIPAY_SELLER_ID: ${ALIPAY_SELLER_ID:-}
+      ALIPAY_PRIVATE_KEY_FILE: /run/secrets/alipay-sandbox/alipay-sandbox-app-private-key.pem
+      ALIPAY_PUBLIC_KEY_FILE: /run/secrets/alipay-sandbox/alipay-sandbox-alipay-public-key.pem
+      ALIPAY_GATEWAY_URL: ${ALIPAY_GATEWAY_URL:-https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+      ALIPAY_NOTIFY_BASE_URL: ${ALIPAY_NOTIFY_BASE_URL:-}
+      ALIPAY_RETURN_URL: ${ALIPAY_RETURN_URL:-}
+      ALIPAY_SIGN_TYPE: ${ALIPAY_SIGN_TYPE:-RSA2}
+      ALIPAY_CHARSET: ${ALIPAY_CHARSET:-UTF-8}
+      ALIPAY_FORMAT: ${ALIPAY_FORMAT:-json}
+      AIMALL_EMAIL_ENABLED: ${AIMALL_EMAIL_ENABLED:-false}
+      AIMALL_EMAIL_FROM: ${AIMALL_EMAIL_FROM:-}
+      AIMALL_EMAIL_CODE_PEPPER: ${AIMALL_EMAIL_CODE_PEPPER:-}
+      AIMALL_SMTP_HOST: ${AIMALL_SMTP_HOST:-}
+      AIMALL_SMTP_PORT: ${AIMALL_SMTP_PORT:-587}
+      AIMALL_SMTP_AUTH: ${AIMALL_SMTP_AUTH:-true}
+      AIMALL_SMTP_STARTTLS: ${AIMALL_SMTP_STARTTLS:-true}
+    expose:
+      - "8080"
+    volumes:
+      - ./secrets/alipay-sandbox:/run/secrets/alipay-sandbox:ro
+    restart: unless-stopped
+
+  # ---------- Vue 3 用户端 ----------
+  aimall-web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: aimall-web
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+  # ---------- Vue 3 管理端 ----------
+  aimall-admin:
+    build:
+      context: .
+      dockerfile: docker/admin/Dockerfile
+    container_name: aimall-admin
+    ports:
+      - "5174:5174"
+    restart: unless-stopped
+
+  # ---------- FastAPI AI 服务 ----------
+  aimall-ai-service:
+    build:
+      context: .
+      dockerfile: docker/ai-service/Dockerfile
+    container_name: aimall-ai-service
+    environment:
+      AIMALL_SERVER_BASE_URL: http://aimall-server:8080
+      AIMALL_ENVIRONMENT: ${AIMALL_ENVIRONMENT:-prod}
+      AIMALL_TENANT_MODE: ${AIMALL_TENANT_MODE:-SINGLE_TENANT}
+      AIMALL_DEFAULT_TENANT_ID: ${AIMALL_DEFAULT_TENANT_ID:-default}
+      AIMALL_INTERNAL_API_SECRET: ${AIMALL_INTERNAL_API_SECRET:?AIMALL_INTERNAL_API_SECRET is required}
+      AIMALL_JAVA_TO_AI_KEY_ID: ${AIMALL_JAVA_TO_AI_KEY_ID:-legacy}
+      AIMALL_JAVA_TO_AI_SECRET: ${AIMALL_JAVA_TO_AI_SECRET:-${AIMALL_INTERNAL_API_SECRET}}
+      AIMALL_JAVA_TO_AI_PREVIOUS_KEY_ID: ${AIMALL_JAVA_TO_AI_PREVIOUS_KEY_ID:-}
+      AIMALL_JAVA_TO_AI_PREVIOUS_SECRET: ${AIMALL_JAVA_TO_AI_PREVIOUS_SECRET:-}
+      AIMALL_AI_TO_JAVA_KEY_ID: ${AIMALL_AI_TO_JAVA_KEY_ID:-legacy}
+      AIMALL_AI_TO_JAVA_SECRET: ${AIMALL_AI_TO_JAVA_SECRET:-${AIMALL_INTERNAL_API_SECRET}}
+      SSE_MAX_GLOBAL_CONNECTIONS: ${SSE_MAX_GLOBAL_CONNECTIONS:-64}
+      SSE_MAX_CONNECTIONS_PER_CLIENT: ${SSE_MAX_CONNECTIONS_PER_CLIENT:-4}
+      SSE_MAX_DURATION_SECONDS: ${SSE_MAX_DURATION_SECONDS:-180}
+      AGNES_API_KEY: ${AGNES_API_KEY}
+      AGNES_BASE_URL: ${AGNES_BASE_URL}
+      AGNES_MODEL: ${AGNES_MODEL}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-180}
+      STATE_BACKEND: redis
+      REDIS_URL: redis://:${AIMALL_INTERNAL_API_SECRET}@redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+volumes:
+  mysqldata2:
+    driver: local
+  redisdata:
+    driver: local

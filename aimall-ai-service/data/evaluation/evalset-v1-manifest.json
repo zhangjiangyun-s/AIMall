@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "AIMALL_EVAL_MANIFEST_V1",
+  "datasetId": "aimall-stage19-rag-gate",
+  "version": "1.0.0",
+  "createdAt": "2026-07-21T00:00:00+08:00",
+  "description": "Fixed offline Stage 19 AI/RAG release gate. Online samples are evaluated separately.",
+  "caseFiles": ["evalset-v1.jsonl"],
+  "caseFileSha256": "735c2bf2039ef919149f0d399f259b3c59c700fc1d233721fe75ff364a50b778",
+  "expectedCaseCount": 15,
+  "expectedCategoryCounts": {
+    "POLICY": 2,
+    "ORDER": 2,
+    "PRODUCT": 2,
+    "RETURN": 2,
+    "REFUSAL": 2,
+    "AUTHORIZATION": 2,
+    "POLICY_RAG": 2,
+    "GUARDRAIL": 1
+  },
+  "evaluationSetVersion": "evalset-v1",
+  "sourceKind": "OFFLINE_CURATED",
+  "containsProductionUserData": false,
+  "releaseSeeds": [25001, 25002, 25003],
+  "categories": ["POLICY", "ORDER", "PRODUCT", "RETURN", "REFUSAL", "AUTHORIZATION", "POLICY_RAG", "GUARDRAIL"]
+}

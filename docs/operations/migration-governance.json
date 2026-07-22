@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "AIMALL_MIGRATION_GOVERNANCE_V1",
+  "migrationDirectory": "aimall-server/src/main/resources/db/migration",
+  "defaultOwner": "backend-dba",
+  "profiles": {
+    "baseline-empty-only": {
+      "estimatedLockTime": "Not applicable; permitted only on a verified empty schema",
+      "tableSizeQuery": "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()",
+      "onlineDdl": "Not applicable",
+      "batchSize": "Not applicable",
+      "progressQuery": "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()",
+      "failureRecovery": "Drop the isolated empty database and rerun the complete Flyway chain",
+      "backupPoint": "No backup required after the empty-schema precondition is verified",
+      "compatibilityWindow": "Initial installation only",
+      "emptyDatabaseOnly": true
+    },
+    "online-expand": {
+      "estimatedLockTime": "Metadata lock target <= 5 seconds per DDL after capacity review",
+      "tableSizeQuery": "SELECT table_name,table_rows,data_length,index_length FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${tables})",
+      "onlineDdl": "Prefer ALGORITHM=INSTANT; otherwise INPLACE LOCK=NONE after rehearsal",
+      "batchSize": "DDL only; backfill statements must use the backfill-batched profile",
+      "progressQuery": "SELECT version,success,installed_on FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5",
+      "failureRecovery": "Leave expanded nullable/defaulted structures in place, repair Flyway only after isolated restore validation",
+      "backupPoint": "Encrypted full backup plus binlog coordinates immediately before migration",
+      "compatibilityWindow": "Current and previous application release"
+    },
+    "backfill-batched": {
+      "estimatedLockTime": "Metadata lock target <= 5 seconds; data batches target <= 2 seconds",
+      "tableSizeQuery": "SELECT table_name,table_rows,data_length,index_length FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${tables})",
+      "onlineDdl": "Expand first; no column contraction in this profile",
+      "batchSize": "1000 rows per transaction unless rehearsal records a lower value",
+      "progressQuery": "Migration-specific remaining-row predicate recorded in the deployment ticket",
+      "failureRecovery": "Resume idempotent batches from the recorded high-water mark; restore only for invariant violation",
+      "backupPoint": "Encrypted full backup plus binlog coordinates immediately before migration",
+      "compatibilityWindow": "Dual-write/read fallback retained for at least one release"
+    },
+    "data-repair": {
+      "estimatedLockTime": "No planned table lock; row locks bounded by batch predicate",
+      "tableSizeQuery": "SELECT table_name,table_rows,data_length,index_length FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${tables})",
+      "onlineDdl": "Not applicable",
+      "batchSize": "1000 rows or a smaller rehearsed batch",
+      "progressQuery": "Migration-specific inconsistent-row count must reach zero",
+      "failureRecovery": "Stop writers for the affected invariant, resume idempotent repair, compare ledgers before reopening",
+      "backupPoint": "Encrypted full backup plus binlog coordinates immediately before repair",
+      "compatibilityWindow": "No contract operation; old readers remain valid"
+    },
+    "contract-approved": {
+      "estimatedLockTime": "Must be measured on a production-sized restored snapshot",
+      "tableSizeQuery": "SELECT table_name,table_rows,data_length,index_length FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${tables})",
+      "onlineDdl": "INPLACE LOCK=NONE only when supported; otherwise approved maintenance window",
+      "batchSize": "Contract DDL is not batched",
+      "progressQuery": "SHOW PROCESSLIST plus performance_schema metadata lock queries",
+      "failureRecovery": "Application rollback must not require removed schema; restore snapshot for destructive failure",
+      "backupPoint": "Signed encrypted backup and verified restore immediately before execution",
+      "compatibilityWindow": "Contract only after previous release is fully retired",
+      "requiresSeparateApproval": true
+    }
+  },
+  "migrations": [
+    {"file":"V20260716_0000__baseline_schema.sql","phase":"BASELINE","profile":"baseline-empty-only","owner":"backend-dba","approvalRequired":false},
+    {"file":"V20260717_1100__legacy_business_schema_reconciliation.sql","phase":"EXPAND_CONTRACT","profile":"contract-approved","owner":"backend-dba","approvalRequired":true},
+    {"file":"V20260717_1200__knowledge_task_fencing_and_vector_delete_queue.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"ai-backend","approvalRequired":false},
+    {"file":"V20260718_1300__coupon_actual_discount_and_payment_transaction_unique.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"commerce-backend","approvalRequired":false},
+    {"file":"V20260718_1400__payment_outbox_and_attempt_foundation.sql","phase":"EXPAND","profile":"online-expand","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1500__order_inventory_consistency_foundation.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"inventory-backend","approvalRequired":false},
+    {"file":"V20260718_1600__refund_query_and_reconciliation.sql","phase":"EXPAND","profile":"online-expand","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1630__repair_full_refund_status.sql","phase":"DATA_REPAIR","profile":"data-repair","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1640__repair_refund_inventory_ledger.sql","phase":"DATA_REPAIR","profile":"data-repair","owner":"inventory-backend","approvalRequired":false},
+    {"file":"V20260718_1650__allow_reconciliation_reruns.sql","phase":"CONTRACT","profile":"contract-approved","owner":"payment-backend","approvalRequired":true},
+    {"file":"V20260718_1700__normalize_local_payment_evidence.sql","phase":"BACKFILL","profile":"backfill-batched","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1710__late_payment_auto_refund.sql","phase":"EXPAND","profile":"online-expand","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1720__payment_operations_manual_resolution.sql","phase":"EXPAND","profile":"online-expand","owner":"payment-backend","approvalRequired":false},
+    {"file":"V20260718_1800__product_price_history.sql","phase":"EXPAND","profile":"online-expand","owner":"catalog-backend","approvalRequired":false},
+    {"file":"V20260718_1830__product_price_rules.sql","phase":"EXPAND","profile":"online-expand","owner":"catalog-backend","approvalRequired":false},
+    {"file":"V20260718_1840__product_brand_and_attribute_templates.sql","phase":"EXPAND","profile":"online-expand","owner":"catalog-backend","approvalRequired":false},
+    {"file":"V20260718_1850__product_interactions.sql","phase":"EXPAND","profile":"online-expand","owner":"catalog-backend","approvalRequired":false},
+    {"file":"V20260718_1860__return_evidence_logistics_inspection_sla.sql","phase":"EXPAND_BACKFILL_CONTRACT","profile":"contract-approved","owner":"after-sales-backend","approvalRequired":true},
+    {"file":"V20260718_1870__member_account_security.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"security-backend","approvalRequired":false},
+    {"file":"V20260718_1880__knowledge_source_trust_score.sql","phase":"EXPAND","profile":"online-expand","owner":"ai-backend","approvalRequired":false},
+    {"file":"V20260718_1890__member_email_verification.sql","phase":"EXPAND","profile":"online-expand","owner":"identity-backend","approvalRequired":false},
+    {"file":"V20260719_1000__stage7_admin_permissions.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"security-backend","approvalRequired":false},
+    {"file":"V20260720_1500__outbox_event_contract.sql","phase":"EXPAND_BACKFILL_CONTRACT","profile":"contract-approved","owner":"platform-backend","approvalRequired":true},
+    {"file":"V20260721_1600__tenant_mode_and_async_trace.sql","phase":"EXPAND_CONTRACT","profile":"contract-approved","owner":"platform-backend","approvalRequired":true},
+    {"file":"V20260721_1610__canonical_inventory_projection.sql","phase":"EXPAND_BACKFILL","profile":"backfill-batched","owner":"inventory-backend","approvalRequired":false},
+    {"file":"V20260721_1620__coupon_usage_lifecycle.sql","phase":"EXPAND_CONTRACT","profile":"contract-approved","owner":"commerce-backend","approvalRequired":true},
+    {"file":"V20260721_1700__payment_reconciliation_workflow.sql","phase":"EXPAND_CONTRACT","profile":"contract-approved","owner":"payment-backend","approvalRequired":true},
+    {"file":"V20260721_1800__precise_money_snapshots.sql","phase":"EXPAND_BACKFILL_DUAL_WRITE_READ_SWITCH","profile":"backfill-batched","owner":"payment-inventory-backend","approvalRequired":false},
+    {"file":"V20260721_1900__knowledge_publication_epoch.sql","phase":"EXPAND_CONTRACT","profile":"contract-approved","owner":"ai-backend","approvalRequired":true},
+    {"file":"V20260722_0900__stage25_outbox_protocol.sql","phase":"EXPAND_BACKFILL_CONTRACT","profile":"contract-approved","owner":"platform-backend","approvalRequired":true}
+  ]
+}

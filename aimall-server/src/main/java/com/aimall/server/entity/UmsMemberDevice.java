@@ -1,0 +1,2 @@
+package com.aimall.server.entity; import com.baomidou.mybatisplus.annotation.*; import lombok.Data; import java.time.LocalDateTime;
+@Data @TableName("ums_member_device") public class UmsMemberDevice{@TableId(type=IdType.AUTO)private Long id;private Long memberId;private String deviceHash;private String deviceName;private String lastIp;private Integer trusted;private Integer revoked;private LocalDateTime firstSeenTime;private LocalDateTime lastSeenTime;}

@@ -2,3 +2,7 @@ fastapi
 uvicorn
 pydantic
 httpx
+pymilvus
+pymupdf
+python-docx
+redis>=5.0,<6.0

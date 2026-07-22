@@ -1,0 +1,2 @@
+package com.aimall.server.entity; import com.baomidou.mybatisplus.annotation.*; import lombok.Data; import java.time.LocalDateTime;
+@Data @TableName("ums_member_login_history") public class UmsMemberLoginHistory{@TableId(type=IdType.AUTO)private Long id;private Long memberId;private String username;private String clientIp;private String userAgent;private String deviceHash;private Integer success;private Integer riskFlag;private String failureReason;private LocalDateTime createTime;}
