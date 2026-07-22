@@ -41,7 +41,7 @@ class FlywayProductionSnapshotIntegrationTest {
             assertTrue(result.next());
             latestVersion = result.getString(1);
         }
-        assertEquals("20260721.1900", latestVersion);
+        assertEquals("20260722.0900", latestVersion);
         assertSnapshotMatchesMutableMigrationEffects(url, username, password);
 
         Flyway flyway = Flyway.configure()
@@ -58,7 +58,7 @@ class FlywayProductionSnapshotIntegrationTest {
         try (Connection connection = DriverManager.getConnection(url, username, password);
              Statement statement = connection.createStatement()) {
             assertEquals(1, statement.executeUpdate(
-                    "DELETE FROM flyway_schema_history WHERE version='20260721.1900' AND success=1"));
+                    "DELETE FROM flyway_schema_history WHERE version='20260722.0900' AND success=1"));
         }
 
         MigrateResult migration = flyway.migrate();

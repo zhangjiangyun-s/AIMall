@@ -64,7 +64,7 @@ class FlywayMigrationIntegrationTest {
         Flyway flyway = migrate(database);
 
         assertNotNull(flyway.info().current());
-        assertEquals("20260721.1900", flyway.info().current().getVersion().toString());
+        assertEquals("20260722.0900", flyway.info().current().getVersion().toString());
         assertTrue(tableExists(database, "oms_order"));
         assertTrue(tableExists(database, "flyway_schema_history"));
         assertTrue(columnExists(database, "outbox_event", "occurred_at_utc"));
@@ -98,7 +98,7 @@ class FlywayMigrationIntegrationTest {
 
         Flyway flyway = migrate(database);
 
-        assertEquals("20260721.1900", flyway.info().current().getVersion().toString());
+        assertEquals("20260722.0900", flyway.info().current().getVersion().toString());
         assertTrue(columnExists(database, "oms_payment_record", "transaction_no"));
         assertTrue(indexExists(database, "oms_payment_record", "uk_oms_payment_transaction_no"));
     }
@@ -113,7 +113,7 @@ class FlywayMigrationIntegrationTest {
 
         Flyway flyway = migrate(database);
 
-        assertEquals("20260721.1900", flyway.info().current().getVersion().toString());
+        assertEquals("20260722.0900", flyway.info().current().getVersion().toString());
         assertTrue(columnExists(database, "knowledge_index_task", "execution_token"));
         assertTrue(columnExists(database, "knowledge_index_task", "attempt_no"));
         assertTrue(columnExists(database, "knowledge_chunk", "retrieval_epoch"));

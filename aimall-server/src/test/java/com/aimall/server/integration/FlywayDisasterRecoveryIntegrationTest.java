@@ -41,7 +41,7 @@ class FlywayDisasterRecoveryIntegrationTest {
         flyway.migrate();
         flyway.validate();
 
-        assertEquals("20260721.1900", flyway.info().current().getVersion().toString());
+        assertEquals("20260722.0900", flyway.info().current().getVersion().toString());
         assertTrue(count(url, username, password, "oms_order") >= ordersBefore);
         assertTrue(count(url, username, password, "oms_payment_record") >= paymentsBefore);
         assertTrue(count(url, username, password, "oms_refund_record") >= refundsBefore);

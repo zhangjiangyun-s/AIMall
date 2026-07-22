@@ -37,10 +37,43 @@ Add-Check "S7-CORS-EXPLICIT" (-not (File-Contains "aimall-server/src/main/java/c
 Add-Check "S7-UPLOAD-SCAN" (File-Contains "aimall-server/src/main/java/com/aimall/server/service/impl/AdminKnowledgeUploadServiceImpl.java" "uploadSecurityScanner.scan") "all knowledge uploads invoke structural and antivirus scanning"
 Add-Check "S7-SSE-LIMIT" (File-Contains "aimall-ai-service/main.py" "SseLimitMiddleware") "AI chat SSE lifecycle limiter is registered"
 
-$secretMatches = @(& rg -l -U -S --hidden `
-    --glob "!.git/**" --glob "!.env" --glob "!.env.*" --glob "!**/node_modules/**" `
-    --glob "!**/target/**" --glob "!.acceptance/**" -- `
-    "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----\r?\n[A-Za-z0-9+/=]{40,}|AKIA[0-9A-Z]{16}" $root 2>$null)
+function Find-SensitiveSourceFiles {
+    $git = (Get-Command git -ErrorAction Stop).Source
+    $relativePaths = @(& $git -C $root -c core.quotepath=false ls-files --cached --others --exclude-standard)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to enumerate source files for the secret scan."
+    }
+
+    $pattern = [regex]::new(
+        "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----\r?\n[A-Za-z0-9+/=]{40,}|AKIA[0-9A-Z]{16}",
+        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    foreach ($relativePath in $relativePaths) {
+        $normalized = $relativePath.Replace("\", "/")
+        if ($normalized -eq ".env" -or $normalized.StartsWith(".env.") -or
+            $normalized.StartsWith(".acceptance/") -or
+            $normalized -match "(^|/)(node_modules|target)(/|$)") {
+            continue
+        }
+
+        $absolutePath = Join-Path $root $relativePath
+        if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) {
+            continue
+        }
+        try {
+            $content = [System.IO.File]::ReadAllText($absolutePath)
+            if ($pattern.IsMatch($content)) {
+                $absolutePath
+            }
+        } catch [System.IO.IOException] {
+            throw "Unable to scan source file: $relativePath"
+        } catch [System.UnauthorizedAccessException] {
+            throw "Unable to scan source file: $relativePath"
+        }
+    }
+}
+
+$secretMatches = @(Find-SensitiveSourceFiles)
 $secretDetail = if ($secretMatches.Count -eq 0) {
     "no private-key or AWS access-key signature found in source files"
 } else {

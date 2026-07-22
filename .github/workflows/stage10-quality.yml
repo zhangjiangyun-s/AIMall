@@ -54,10 +54,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "24", cache: npm, cache-dependency-path: aimall-web/package-lock.json }
+        with:
+          node-version: "22.14.0"
+          cache: npm
+          cache-dependency-path: |
+            aimall-web/package-lock.json
+            aimall-admin/package-lock.json
       - name: Web install and audit
         working-directory: aimall-web
-        run: npm ci && npm audit --audit-level=high
+        run: npm ci --include=dev --no-audit && npm audit --audit-level=high
       - name: Web component tests and build
         working-directory: aimall-web
         run: npm test && npm run build
@@ -66,7 +71,7 @@ jobs:
         run: npm run test:e2e
       - name: Admin install, typecheck and build
         working-directory: aimall-admin
-        run: npm ci && npm run build
+        run: npm ci --include=dev --no-audit && npm run build
 
   dependency-audit:
     runs-on: ubuntu-latest

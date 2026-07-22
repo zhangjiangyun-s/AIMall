@@ -29,7 +29,12 @@ jobs:
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: "17", cache: maven}
       - uses: actions/setup-node@v4
-        with: {node-version: "24", cache: npm, cache-dependency-path: "aimall-web/package-lock.json"}
+        with:
+          node-version: "22.14.0"
+          cache: npm
+          cache-dependency-path: |
+            aimall-web/package-lock.json
+            aimall-admin/package-lock.json
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - name: SAST - Semgrep OWASP Top Ten
@@ -38,7 +43,7 @@ jobs:
         working-directory: aimall-server
         run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
       - name: npm dependency gates
-        run: npm --prefix aimall-web ci && npm --prefix aimall-web audit --audit-level=high && npm --prefix aimall-admin ci && npm --prefix aimall-admin audit --audit-level=high
+        run: npm --prefix aimall-web ci --include=dev --no-audit && npm --prefix aimall-web audit --audit-level=high && npm --prefix aimall-admin ci --include=dev --no-audit && npm --prefix aimall-admin audit --audit-level=high
       - name: pip dependency gate
         working-directory: aimall-ai-service
         run: pip install pip-audit && pip-audit -r requirements.txt

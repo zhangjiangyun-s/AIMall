@@ -94,9 +94,9 @@ Add-Check $checks 'S20-03' 'Encrypted least-privilege backup artifact' `
     'No KMS-managed key, immutable offsite object, secondary account/region or retention evidence exists.'
 Add-Check $checks 'S20-04' 'Isolated restore, migration and domain acceptance' `
     ([bool]$backup.passed -and [bool]$backup.rtoPassed -and $backup.rtoSeconds -le $backup.rtoTargetSeconds -and
-        $backup.latestFlywayVersion -eq '20260721.1900' -and $snapshotsComplete -and $invariantsPassed) `
+        $backup.latestFlywayVersion -eq '20260722.0900' -and $snapshotsComplete -and $invariantsPassed) `
     $false `
-    "Isolated restore migrated to 20260721.1900 in $($backup.rtoSeconds)s and preserved eight domain snapshots with six invariants." `
+    "Isolated restore migrated to 20260722.0900 in $($backup.rtoSeconds)s and preserved eight domain snapshots with six invariants." `
     'No production PITR/binlog replay drill on production-sized separate infrastructure has been completed.'
 Add-Check $checks 'S20-05' 'RPO/RTO configuration and disaster-recovery runbook' `
     ($compose.Contains('--binlog-format=ROW') -and $compose.Contains('--sync-binlog=1') -and
@@ -110,7 +110,7 @@ Add-Check $checks 'S20-05' 'RPO/RTO configuration and disaster-recovery runbook'
     'No live Redis offsite restore, Action takeover, or timed full Milvus rebuild drill exists.'
 Add-Check $checks 'S20-06' 'Current schema migration and regression verification' `
     ([bool]$currentMigration.passed -and $currentMigration.database -eq 'aimall' -and
-        $currentMigration.latestFlywayVersion -eq '20260721.1900' -and
+        $currentMigration.latestFlywayVersion -eq '20260722.0900' -and
         $currentMigration.backupSha256 -eq $backup.encryptedBackupSha256 -and
         [bool]$verification.python.passed -and [bool]$verification.java.passed -and
         [bool]$verification.realMySql.passed -and [bool]$verification.compose.passed) `

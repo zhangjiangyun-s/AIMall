@@ -32,7 +32,7 @@ class FlywayCurrentDatabaseMigrationIntegrationTest {
         flyway.migrate();
         flyway.validate();
 
-        assertEquals("20260721.1900", flyway.info().current().getVersion().toString());
+        assertEquals("20260722.0900", flyway.info().current().getVersion().toString());
     }
 
     private String required(String name) {

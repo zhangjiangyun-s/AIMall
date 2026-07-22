@@ -17,7 +17,7 @@ $rootPath = [IO.Path]::GetFullPath($Root)
 $evidencePath = Join-Path $rootPath '.acceptance/stage20/backup-restore/result.json'
 if (-not (Test-Path $evidencePath)) { throw 'Stage 20 encrypted restore evidence is required' }
 $evidence = Get-Content $evidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $evidence.passed -or -not $evidence.rtoPassed -or $evidence.latestFlywayVersion -ne '20260721.1900') {
+if (-not $evidence.passed -or -not $evidence.rtoPassed -or $evidence.latestFlywayVersion -ne '20260722.0900') {
     throw 'Stage 20 isolated restore and Flyway evidence is not successful'
 }
 $encrypted = Join-Path $rootPath $evidence.encryptedBackup
@@ -53,7 +53,7 @@ $result = [ordered]@{
     database = 'aimall'
     backupRunId = $evidence.runId
     backupSha256 = $evidence.encryptedBackupSha256
-    latestFlywayVersion = '20260721.1900'
+    latestFlywayVersion = '20260722.0900'
     durationSeconds = [Math]::Round(([DateTimeOffset]::UtcNow - $started).TotalSeconds, 3)
     passed = $true
 }
