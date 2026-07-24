@@ -128,8 +128,3 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-
-knife4j:
-  enable: ${AIMALL_API_DOCS_ENABLED:false}
-  setting:
-    language: zh-CN
